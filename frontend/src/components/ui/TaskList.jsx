@@ -94,7 +94,7 @@ const TASK_ICONS = {
   PLACE_LUNCH: Utensils,
 }
 
-function TaskItemCard({ task, isExpanded, onToggleExpand, activeTaskId, setActiveTask, distance, role }) {
+function TaskItemCard({ task, isExpanded, onToggleExpand, activeTaskId, setActiveTask, distance, role, inConsole }) {
   const currentArea = useGameStore((s) => s.currentArea)
   const taskStartedId = useGameStore((s) => s.taskStartedId)
   const setTaskStarted = useGameStore((s) => s.setTaskStarted)
@@ -135,106 +135,110 @@ function TaskItemCard({ task, isExpanded, onToggleExpand, activeTaskId, setActiv
     }
   }
 
-  const cardStyle = {
-    '--priority-color': details.priorityColor
-  }
+  // Force expanded when in console view for total clarity
+  const showFullDetails = inConsole || isExpanded
 
   return (
     <motion.div
       layout
-      style={cardStyle}
       onClick={onToggleExpand}
       className={`task-item-card ${task.completed ? 'completed' : ''} ${isStarted ? 'task-started' : ''} ${isInZone && !task.completed ? 'active-zone' : ''} ${isTracked && !task.completed ? 'active-tracked' : ''}`}
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -15 }}
       transition={{ duration: 0.2 }}
+      style={{ '--priority-color': details.priorityColor }}
     >
-      <div className="task-card-main">
-        <div className="task-card-icon-container">
-          <IconComp size={14} />
+      {/* Top Header Badge Bar */}
+      <div className="task-card-badge-bar">
+        <div className="task-badge-category">
+          <IconComp size={13} />
+          <span>{details.category}</span>
         </div>
-        <div className="task-card-details">
-          <div className="task-card-title">
-            {details.name}
-            {isStarted && !task.completed && (
-              <span className="task-started-badge">READY</span>
-            )}
-          </div>
-          <div className="task-card-loc-dist">
-            <span>📍 {task.location}</span>
-            {distance !== null && !task.completed && (
-              <span className="task-card-dist">{distance}m</span>
-            )}
-          </div>
-        </div>
-        <div className="task-card-points">+{task.points}pts</div>
+        <span className={`task-badge-priority priority-${details.priority.toLowerCase()}`}>
+          {details.priority} PRIORITY
+        </span>
+        <span className="task-badge-points">+{task.points} pts</span>
       </div>
 
-      {/* Progress bar */}
-      {!task.completed && (
-        <div className="task-card-progress-bar">
-          <div 
-            className="task-card-progress-fill" 
-            style={{ width: `${progressPercent}%` }}
-          />
+      {/* Main Title & Location */}
+      <div className="task-card-header">
+        <h3 className="task-card-title">{details.name}</h3>
+        <div className="task-card-location">
+          <span>📍 {task.location}</span>
+          {distance !== null && !task.completed && (
+            <span className="task-card-distance">{distance}m away</span>
+          )}
+        </div>
+      </div>
+
+      {/* Progress Bar (if in progress) */}
+      {!task.completed && task.progress > 0 && (
+        <div className="task-card-progress-container">
+          <div className="task-card-progress-info">
+            <span>Progress</span>
+            <span>{progressPercent}%</span>
+          </div>
+          <div className="task-card-progress-bar">
+            <div
+              className="task-card-progress-fill"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
         </div>
       )}
 
-      {/* Interactive Expandable details */}
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="task-card-expanded"
-          >
-            <p className="task-desc">{details.desc}</p>
-            
-            <div className="task-metadata-grid">
-              <span className="task-meta-label">Category:</span>
-              <span className="task-meta-value">{details.category}</span>
-              
-              <span className="task-meta-label">Priority:</span>
-              <span className={`task-meta-value priority-${details.priority.toLowerCase()}`}>
-                {details.priority}
-              </span>
-              
-              <span className="task-meta-label">Est. Time:</span>
-              <span className="task-meta-value">{task.duration_seconds}s</span>
+      {/* Description & Metadata */}
+      {showFullDetails && (
+        <div className="task-card-body">
+          <p className="task-card-desc">{details.desc}</p>
 
-              <span className="task-meta-label">Status:</span>
-              <span className={`task-meta-value ${task.completed ? 'status-completed' : 'status-in-progress'}`}>
-                {task.completed ? 'Completed' : task.progress > 0 ? `In Progress (${progressPercent}%)` : 'Not Started'}
+          <div className="task-meta-pills">
+            <div className="meta-pill">
+              <span className="meta-pill-label">Est. Time:</span>
+              <span className="meta-pill-val">{task.duration_seconds}s</span>
+            </div>
+            <div className="meta-pill">
+              <span className="meta-pill-label">Status:</span>
+              <span className={`meta-pill-val ${task.completed ? 'text-emerald-400' : 'text-amber-400'}`}>
+                {task.completed ? '✓ Completed' : task.progress > 0 ? `${progressPercent}% Done` : 'Not Started'}
               </span>
             </div>
+          </div>
 
-            {!task.completed && (
-              <div className="task-actions-row">
-                <button
-                  className={`task-btn-start ${isStarted ? 'started' : ''}`}
-                  onClick={handleStartClick}
-                >
-                  <Play size={12} fill={isStarted ? '#10b981' : 'currentColor'} />
-                  {isStarted ? 'ACTIVE TASK' : 'START TASK'}
-                </button>
-                <button className="task-btn-track" onClick={handleTrackClick}>
-                  {isTracked ? 'UNTRACK' : 'TRACK MISSION'}
-                </button>
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+          {/* Action Buttons Row */}
+          {!task.completed && (
+            <div className="task-actions-row">
+              <button
+                type="button"
+                className={`task-btn-start ${isStarted ? 'started' : ''}`}
+                onClick={handleStartClick}
+              >
+                <Play size={13} fill={isStarted ? '#10b981' : 'currentColor'} />
+                <span>{isStarted ? 'ACTIVE TASK' : 'START TASK'}</span>
+              </button>
+
+              <button
+                type="button"
+                className={`task-btn-track ${isTracked ? 'tracked' : ''}`}
+                onClick={handleTrackClick}
+              >
+                <Navigation size={13} />
+                <span>{isTracked ? 'UNTRACK' : 'TRACK MISSION'}</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {isInZone && !task.completed && (
         <div className="task-zone-hint">
-          <Navigation size={10} className="animate-pulse" />
-          <span>{isStarted ? 'Objective Zone Reached! Hold E' : 'Click "START TASK" to interact'}</span>
+          <Navigation size={12} className="animate-pulse" />
+          <span>{isStarted ? 'Objective Zone Reached! Hold E' : 'Tap START TASK to interact'}</span>
         </div>
       )}
     </motion.div>
+  )
   )
 }
 
@@ -434,6 +438,7 @@ export default function TaskList() {
                 setActiveTask={setActiveTask}
                 distance={taskDistances[task.task_id]}
                 role={role}
+                inConsole={true}
               />
             ))}
           </AnimatePresence>
