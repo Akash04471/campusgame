@@ -94,7 +94,7 @@ const TASK_ICONS = {
   PLACE_LUNCH: Utensils,
 }
 
-function TaskItemCard({ task, isExpanded, onToggleExpand, activeTaskId, setActiveTask, distance, role, inConsole }) {
+function TaskItemCard({ task, isExpanded, onToggleExpand, activeTaskId, setActiveTask, distance, role, inConsole, onActionClose }) {
   const currentArea = useGameStore((s) => s.currentArea)
   const taskStartedId = useGameStore((s) => s.taskStartedId)
   const setTaskStarted = useGameStore((s) => s.setTaskStarted)
@@ -124,6 +124,7 @@ function TaskItemCard({ task, isExpanded, onToggleExpand, activeTaskId, setActiv
       setActiveTask(task.task_id)
       setTaskStarted(task.task_id)
     }
+    if (onActionClose) onActionClose()
   }
 
   const handleTrackClick = (e) => {
@@ -133,6 +134,7 @@ function TaskItemCard({ task, isExpanded, onToggleExpand, activeTaskId, setActiv
     } else {
       setActiveTask(task.task_id)
     }
+    if (onActionClose) onActionClose()
   }
 
   // Force expanded when in console view for total clarity
@@ -439,6 +441,7 @@ export default function TaskList() {
                 distance={taskDistances[task.task_id]}
                 role={role}
                 inConsole={true}
+                onActionClose={() => setIsOpen(false)}
               />
             ))}
           </AnimatePresence>
