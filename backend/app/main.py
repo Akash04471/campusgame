@@ -535,6 +535,13 @@ async def websocket_game_endpoint(websocket: WebSocket, room_code: str, player_i
             mtg_elapsed = int(_time.time() - mtg.started_at)
             meeting_time_remaining = max(0, MEETING_DURATION - mtg_elapsed)
 
+        # Include current positions of all other players in room
+        other_players_data = {}
+        if hasattr(gs, 'player_positions'):
+            for other_pid, pos_info in gs.player_positions.items():
+                if str(other_pid) != pid_str:
+                    other_players_data[str(other_pid)] = pos_info
+
         await websocket.send_json({
             "type": "GAME_STATE",
             "payload": {
@@ -545,7 +552,12 @@ async def websocket_game_endpoint(websocket: WebSocket, room_code: str, player_i
                 "time_remaining": time_remaining,
                 "game_phase": "meeting" if meeting_active else "exploration",
                 "meeting_active": meeting_active,
-                "meeting_time_remaining": meeting_time_remaining
+                "meeting_time_remaining": meeting_time_remaining,
+                "other_players": other_players_data,
+                "all_players": {
+                    str(pid): {"username": p.username, "role": gs.assignments.get(str(pid))}
+                    for pid, p in room.players.items()
+                }
             }
         })
 

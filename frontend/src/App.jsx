@@ -145,6 +145,20 @@ function useGameWebSocket(roomCode, playerId) {
             if (payload.game_phase) setGamePhase(payload.game_phase)
             if (typeof payload.meeting_active === 'boolean') setMeetingActive(payload.meeting_active)
             if (typeof payload.meeting_time_remaining === 'number') setMeetingTimeRemaining(payload.meeting_time_remaining)
+            if (payload.all_players) {
+              Object.entries(payload.all_players).forEach(([opId, opData]) => {
+                if (String(opId) !== String(playerId)) {
+                  updateOtherPlayer(opId, opData)
+                }
+              })
+            }
+            if (payload.other_players) {
+              Object.entries(payload.other_players).forEach(([opId, opData]) => {
+                if (String(opId) !== String(playerId)) {
+                  updateOtherPlayer(opId, opData)
+                }
+              })
+            }
             break
           case 'MATCH_TIMER_UPDATE':
             if (typeof payload.time_remaining === 'number') setTimerSeconds(payload.time_remaining)

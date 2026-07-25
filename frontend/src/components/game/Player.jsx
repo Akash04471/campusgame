@@ -285,17 +285,37 @@ function OtherPlayerCharacter({ data }) {
   // Update target coordinates from WebSocket data
   useEffect(() => {
     if (data.position) {
-      targetPos.current.set(data.position.x, data.position.y ?? 0, data.position.z)
+      let px = 0, py = 0, pz = 0
+      if (typeof data.position.x === 'number') {
+        px = data.position.x
+        py = data.position.y ?? 0
+        pz = data.position.z ?? 0
+      } else if (Array.isArray(data.position) && data.position.length >= 3) {
+        px = data.position[0]
+        py = data.position[1] ?? 0
+        pz = data.position[2] ?? 0
+      }
+      targetPos.current.set(px, py, pz)
     }
     if (data.rotation !== undefined) {
       targetRot.current = data.rotation
     }
-  }, [data.position, data.rotation])
+  }, [data.position?.x, data.position?.z, data.position, data.rotation])
 
   // Initialize position on mount
   useEffect(() => {
     if (groupRef.current && data.position) {
-      groupRef.current.position.set(data.position.x, data.position.y ?? 0, data.position.z)
+      let px = 0, py = 0, pz = 0
+      if (typeof data.position.x === 'number') {
+        px = data.position.x
+        py = data.position.y ?? 0
+        pz = data.position.z ?? 0
+      } else if (Array.isArray(data.position) && data.position.length >= 3) {
+        px = data.position[0]
+        py = data.position[1] ?? 0
+        pz = data.position[2] ?? 0
+      }
+      groupRef.current.position.set(px, py, pz)
       prevPos.current.copy(groupRef.current.position)
     }
   }, [])
