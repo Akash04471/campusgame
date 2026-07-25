@@ -15,7 +15,7 @@ DIFFICULTY_MODIFIERS = {
         'mastermind_sabotage_cooldown': 180,       # 3 min
         'conspirator_destroy_rate': 1,             # per minute
         'fake_evidence_grace_period': 300,         # 5 min
-        'timer_seconds': 22 * 60,
+        'timer_seconds': 12 * 60,
         'detection_chance_fabricated': 0.30,
     },
     'medium': {
@@ -24,7 +24,7 @@ DIFFICULTY_MODIFIERS = {
         'mastermind_sabotage_cooldown': 120,
         'conspirator_destroy_rate': 2,
         'fake_evidence_grace_period': 0,
-        'timer_seconds': 20 * 60,
+        'timer_seconds': 10 * 60,
         'detection_chance_fabricated': 0.20,
     },
     'hard': {
@@ -33,7 +33,7 @@ DIFFICULTY_MODIFIERS = {
         'mastermind_sabotage_cooldown': 60,
         'conspirator_destroy_rate': 3,
         'fake_evidence_grace_period': 0,
-        'timer_seconds': 18 * 60,
+        'timer_seconds': 8 * 60,
         'detection_chance_fabricated': 0.10,
     },
 }

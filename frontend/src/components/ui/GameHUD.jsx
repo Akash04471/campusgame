@@ -384,15 +384,16 @@ function Timer() {
 
   useEffect(() => {
     intervalRef.current = setInterval(() => {
-      // Read latest values from store dynamically inside stable interval
+      // 1. Tick local store timer for smooth continuous countdown
+      useGameStore.getState().tickTimer()
+
+      // 2. Read latest state for periodic movement tracking over WS
       const state = useGameStore.getState()
       const currentWs = state.ws
       const currentPos = state.playerPosition
       const area = state.currentArea
 
       if (currentWs && currentWs.readyState === WebSocket.OPEN) {
-        currentWs.send(JSON.stringify({ action: 'TIMER_TICK' }))
-
         // Every 5 seconds record movement for CCTV
         cctvTickRef.current += 1
         if (cctvTickRef.current >= 5) {

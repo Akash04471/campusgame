@@ -131,7 +131,7 @@ function useGameWebSocket(roomCode, playerId) {
         switch (type) {
           case 'ROLE_REVEAL':
             setRole(payload.role)
-            setTimerSeconds(payload.timer_seconds || 1200)
+            setTimerSeconds(payload.timer_seconds || 600)
             if (payload.partner_id) setPartnerInfo({ partner_id: payload.partner_id, partner_name: payload.partner_name, partner_role: payload.partner_role })
             setGamePhase('role_reveal')
             break
