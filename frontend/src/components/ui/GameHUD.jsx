@@ -7,7 +7,6 @@ import AbilityMenu from './AbilityMenu'
 import VirtualControls from './VirtualControls'
 import CCTVReportPanel from './CCTVReportPanel'
 import EvidenceCardPopup from './EvidenceCardPopup'
-import PersonalEvidenceLogPanel from './PersonalEvidenceLogPanel'
 import MovementTraceReportPanel from './MovementTraceReportPanel'
 import TaskCompass from './TaskCompass'
 
@@ -179,26 +178,22 @@ function ChristUniversityMinimap() {
         ctx.stroke()
       }
 
-      // Readable label abbreviations
+      // Readable label names matching Objective locations
       let shortName = label
-      if (label === 'Central Block') shortName = 'CB'
+      if (label === 'Central Block' || label === 'Main Block') shortName = 'Main Block'
       else if (label === 'Junior College') shortName = 'JC'
-      else if (label === 'Auditorium' || label === 'Audi Block') shortName = 'AB'
-      else if (label === 'R&D Block') shortName = 'RD'
+      else if (label === 'Auditorium' || label === 'Audi Block') shortName = 'Auditorium'
+      else if (label === 'R&D Block' || label === 'Research Center') shortName = 'Research Ctr'
+      else if (label === 'Computer Lab') shortName = 'Comp Lab'
+      else if (label === 'Security Office') shortName = 'Security'
+      else if (label === 'MCA Department') shortName = 'MCA Dept'
+      else if (label === 'Library') shortName = 'Library'
       else if (label === 'Girls Hostel') shortName = 'GH'
       else if (label === 'She Block / Boys Hostel') shortName = 'BH'
-      else if (label.includes('Canteen')) {
-        if (label.includes('Top')) shortName = 'C1'
-        else if (label.includes('Middle')) shortName = 'C2'
-        else if (label.includes('Bottom Right')) shortName = 'C4'
-        else shortName = 'C3'
-      } else if (label.includes('Basket Ball')) {
-        shortName = label.includes('Left') ? 'BK-L' : 'BK-R'
-      } else if (label.includes('Hockey')) {
-        shortName = 'Hock'
-      } else if (label.includes('Parking')) {
-        shortName = 'PRK'
-      }
+      else if (label === 'Cafeteria' || label.includes('Canteen')) shortName = 'Cafeteria'
+      else if (label.includes('Basket Ball')) shortName = label.includes('Left') ? 'BK-L' : 'BK-R'
+      else if (label.includes('Hockey')) shortName = 'Hock'
+      else if (label.includes('Parking')) shortName = 'PRK'
 
       ctx.fillStyle = textColor
       ctx.font = 'bold 8px "Outfit", sans-serif'
@@ -593,7 +588,6 @@ export default function GameHUD() {
       <div className="hud-right-sidebar">
         <TaskList />
         <EvidenceBoard />
-        <PersonalEvidenceLogPanel />
       </div>
 
       <div className="hud-bottom-bar">

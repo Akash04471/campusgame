@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import ReactDOM from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Wrench, 
@@ -18,7 +19,11 @@ import {
   Navigation,
   CheckCircle2,
   XCircle,
-  Play
+  Play,
+  Target,
+  X,
+  Zap,
+  ListFilter
 } from 'lucide-react'
 import useGameStore from '../../store/gameStore'
 
@@ -241,10 +246,20 @@ export default function TaskList() {
   const activeTaskId = useGameStore((s) => s.activeTaskId)
   const setActiveTask = useGameStore((s) => s.setActiveTask)
 
+  const [isOpen, setIsOpen] = useState(false)
   const [expandedId, setExpandedId] = useState(null)
-  const [filterMode, setFilterMode] = useState('ALL') // ALL | ACTIVE | COMPLETED
+  const [filterTab, setFilterTab] = useState('ALL') // ALL | INCOMPLETE | COMPLETED
   const [sortBy, setSortBy] = useState('NEAREST') // NEAREST | PRIORITY | REWARD
-  const [showCompletedSection, setShowCompletedSection] = useState(false)
+
+  // Listen for Escape key to close objectives modal
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setIsOpen(false)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen])
 
   // Calculate dynamic distances to each task location
   const taskDistances = {}
@@ -261,7 +276,7 @@ export default function TaskList() {
 
   if (tasks.length === 0) return null
 
-  // Helper to map priority weights
+  // Priority weight mapping
   const getPriorityWeight = (taskType) => {
     const roleKey = (role && TASK_MAPPINGS[role.toUpperCase()]) ? role.toUpperCase() : 'INVESTIGATOR'
     const details = TASK_MAPPINGS[roleKey][taskType]
@@ -275,143 +290,195 @@ export default function TaskList() {
     }
   }
 
-  // Filter tasks
   const activeTasks = tasks.filter(t => !t.completed)
   const completedTasks = tasks.filter(t => t.completed)
+  const completionPercent = Math.round((completedTasks.length / Math.max(1, tasks.length)) * 100)
 
-  const filterAndSortTasks = (taskList) => {
-    let list = [...taskList]
-    
-    // Sorting
-    list.sort((a, b) => {
-      // Always pin actively tracked task to the top
-      const aTracked = a.task_id === activeTaskId ? 1 : 0
-      const bTracked = b.task_id === activeTaskId ? 1 : 0
-      if (aTracked !== bTracked) return bTracked - aTracked
+  // Tracked task details for HUD button preview
+  const trackedTask = tasks.find(t => t.task_id === activeTaskId && !t.completed) || activeTasks[0]
+  const roleKey = (role && TASK_MAPPINGS[role.toUpperCase()]) ? role.toUpperCase() : 'INVESTIGATOR'
+  const trackedDetails = trackedTask ? TASK_MAPPINGS[roleKey][trackedTask.task_type] : null
 
-      if (sortBy === 'NEAREST') {
-        const distA = taskDistances[a.task_id] ?? 9999
-        const distB = taskDistances[b.task_id] ?? 9999
-        return distA - distB
-      } else if (sortBy === 'PRIORITY') {
-        return getPriorityWeight(b.task_type) - getPriorityWeight(a.task_type)
-      } else if (sortBy === 'REWARD') {
-        return b.points - a.points
-      }
-      return 0
-    })
+  // Filter & sort logic
+  let displayedTasks = tasks
+  if (filterTab === 'INCOMPLETE') displayedTasks = activeTasks
+  else if (filterTab === 'COMPLETED') displayedTasks = completedTasks
 
-    return list
-  }
+  displayedTasks = [...displayedTasks].sort((a, b) => {
+    const aTracked = a.task_id === activeTaskId ? 1 : 0
+    const bTracked = b.task_id === activeTaskId ? 1 : 0
+    if (aTracked !== bTracked) return bTracked - aTracked
 
-  const sortedActive = filterAndSortTasks(activeTasks)
-  const sortedCompleted = filterAndSortTasks(completedTasks)
+    if (sortBy === 'NEAREST') {
+      const distA = taskDistances[a.task_id] ?? 9999
+      const distB = taskDistances[b.task_id] ?? 9999
+      return distA - distB
+    } else if (sortBy === 'PRIORITY') {
+      return getPriorityWeight(b.task_type) - getPriorityWeight(a.task_type)
+    } else if (sortBy === 'REWARD') {
+      return b.points - a.points
+    }
+    return 0
+  })
 
-  return (
-    <div className="task-list-panel" id="task-list">
-      <div className="task-list-header">
-        <span className="task-list-title">
-          <Navigation size={13} style={{ color: '#8b5cf6' }} />
-          OBJECTIVES
-        </span>
-        <span className="task-list-progress">
-          {completedTasks.length}/{tasks.length}
-        </span>
-      </div>
-
-      {/* Interactive sorting and filters bar */}
-      <div className="task-filters">
-        <select 
-          className="task-filter-select" 
-          value={sortBy} 
-          onChange={(e) => setSortBy(e.target.value)}
-        >
-          <option value="NEAREST">Nearest First</option>
-          <option value="PRIORITY">Highest Priority</option>
-          <option value="REWARD">Highest Reward</option>
-        </select>
-
-        <button 
-          className="task-sort-btn" 
-          onClick={() => {
-            // Find first incomplete task, track & start it
-            const firstIncomplete = activeTasks[0]
-            if (firstIncomplete) {
-              setActiveTask(firstIncomplete.task_id)
-              setTaskStarted(firstIncomplete.task_id)
-            }
-          }}
-          disabled={activeTasks.length === 0}
-        >
-          Auto-Track
-        </button>
-      </div>
-
-      <div className="task-items">
-        {/* Active Tasks List */}
-        <AnimatePresence>
-          {sortedActive.map(task => (
-            <TaskItemCard
-              key={task.task_id}
-              task={task}
-              isExpanded={expandedId === task.task_id}
-              onToggleExpand={() => setExpandedId(expandedId === task.task_id ? null : task.task_id)}
-              activeTaskId={activeTaskId}
-              setActiveTask={setActiveTask}
-              distance={taskDistances[task.task_id]}
-              role={role}
-            />
-          ))}
-        </AnimatePresence>
-
-        {activeTasks.length === 0 && (
-          <div className="evidence-empty" style={{ padding: '2rem 0' }}>
-            🎉 All primary objectives secured!
-          </div>
-        )}
-
-        {/* Collapsible Completed Section */}
-        {completedTasks.length > 0 && (
-          <>
-            <div 
-              className="task-completed-toggle"
-              onClick={() => setShowCompletedSection(!showCompletedSection)}
-            >
-              <span className="task-completed-badge-icon">
-                <CheckCircle2 size={12} style={{ color: '#10b981' }} />
-                <span>Completed Tasks ({completedTasks.length})</span>
-              </span>
-              {showCompletedSection ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+  // Full Objectives Modal content
+  const modalContent = isOpen ? (
+    <div
+      className="objectives-modal-overlay"
+      onClick={(e) => { e.stopPropagation(); setIsOpen(false) }}
+    >
+      <div
+        className="objectives-modal-container"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="obj-modal-header">
+          <div className="obj-modal-header-left">
+            <Target size={22} className="obj-modal-icon" />
+            <div>
+              <h2 className="obj-modal-title">MISSION OBJECTIVES CONSOLE</h2>
+              <p className="obj-modal-sub">
+                Christ University Operations · Directives & Progress Matrix
+              </p>
             </div>
+          </div>
+          <button
+            type="button"
+            className="obj-modal-close-btn"
+            onClick={(e) => { e.stopPropagation(); setIsOpen(false) }}
+          >
+            <X size={16} />
+            <span>CLOSE</span>
+          </button>
+        </div>
 
-            <AnimatePresence>
-              {showCompletedSection && (
-                <motion.div 
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="task-items"
-                  style={{ gap: '0.6rem', marginTop: '0.4rem' }}
-                >
-                  {sortedCompleted.map(task => (
-                    <TaskItemCard
-                      key={task.task_id}
-                      task={task}
-                      isExpanded={expandedId === task.task_id}
-                      onToggleExpand={() => setExpandedId(expandedId === task.task_id ? null : task.task_id)}
-                      activeTaskId={activeTaskId}
-                      setActiveTask={setActiveTask}
-                      distance={null}
-                      role={role}
-                    />
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </>
-        )}
+        {/* Global Progress Bar */}
+        <div className="obj-modal-progress-card">
+          <div className="obj-progress-label-row">
+            <span className="obj-progress-title">CAMPUS TASKS SECURED</span>
+            <span className="obj-progress-stats">
+              {completedTasks.length} / {tasks.length} Completed ({completionPercent}%)
+            </span>
+          </div>
+          <div className="obj-progress-track">
+            <div
+              className="obj-progress-fill"
+              style={{ width: `${completionPercent}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Controls & Filter Bar */}
+        <div className="obj-modal-controls-bar">
+          {/* Tabs */}
+          <div className="obj-tabs-group">
+            {[
+              ['ALL', `ALL (${tasks.length})`],
+              ['INCOMPLETE', `ACTIVE (${activeTasks.length})`],
+              ['COMPLETED', `COMPLETED (${completedTasks.length})`],
+            ].map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                className={`obj-tab-btn ${filterTab === key ? 'active' : ''}`}
+                onClick={(e) => { e.stopPropagation(); setFilterTab(key) }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Sort & Auto-Track */}
+          <div className="obj-actions-group">
+            <select
+              className="obj-sort-select"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+            >
+              <option value="NEAREST">📍 Nearest First</option>
+              <option value="PRIORITY">⚠️ Highest Priority</option>
+              <option value="REWARD">⭐ Highest Reward</option>
+            </select>
+
+            <button
+              type="button"
+              className="obj-autotrack-btn"
+              onClick={(e) => {
+                e.stopPropagation()
+                const firstIncomplete = activeTasks[0]
+                if (firstIncomplete) {
+                  setActiveTask(firstIncomplete.task_id)
+                  setTaskStarted(firstIncomplete.task_id)
+                }
+              }}
+              disabled={activeTasks.length === 0}
+            >
+              <Zap size={12} />
+              <span>Auto-Track</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Task Cards Grid */}
+        <div className="obj-modal-cards-grid">
+          <AnimatePresence>
+            {displayedTasks.map((task) => (
+              <TaskItemCard
+                key={task.task_id}
+                task={task}
+                isExpanded={expandedId === task.task_id}
+                onToggleExpand={() =>
+                  setExpandedId(expandedId === task.task_id ? null : task.task_id)
+                }
+                activeTaskId={activeTaskId}
+                setActiveTask={setActiveTask}
+                distance={taskDistances[task.task_id]}
+                role={role}
+              />
+            ))}
+          </AnimatePresence>
+
+          {displayedTasks.length === 0 && (
+            <div className="obj-modal-empty">
+              <span>🎉</span>
+              <p>No objectives match the selected filter.</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
+  ) : null
+
+  return (
+    <>
+      {/* HUD Compact Objectives Button */}
+      <button
+        id="objectives-toggle-btn"
+        type="button"
+        className={`objectives-hud-btn ${isOpen ? 'active' : ''}`}
+        onClick={(e) => {
+          e.stopPropagation()
+          setIsOpen(!isOpen)
+        }}
+        title="Open Objectives Console"
+      >
+        <div className="obj-hud-btn-main">
+          <Target size={14} className="obj-hud-icon" />
+          <span className="obj-hud-btn-title">OBJECTIVES</span>
+          <span className="obj-hud-btn-badge">
+            {completedTasks.length}/{tasks.length}
+          </span>
+        </div>
+        {trackedTask && (
+          <div className="obj-hud-btn-sub">
+            📍 {trackedTask.location} · {trackedDetails?.name || trackedTask.name}
+          </div>
+        )}
+      </button>
+
+      {/* Full Objectives Console Modal Portal */}
+      {modalContent && ReactDOM.createPortal(modalContent, document.body)}
+    </>
   )
 }
 

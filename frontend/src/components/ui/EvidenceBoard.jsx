@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import ReactDOM from 'react-dom'
 import useGameStore from '../../store/gameStore'
 import { TYPE_ICONS, TYPE_COLORS, ReliabilityStars } from '../../utils/evidenceVisuals'
 import SuspectDossier from './SuspectDossier'
@@ -20,6 +21,18 @@ export default function EvidenceBoard() {
   const [selectedYarn, setSelectedYarn] = useState(null)
   const dragOffset = useRef({ x: 0, y: 0 })
   const containerRef = useRef(null)
+
+  // Listen for Escape key to close board
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsOpen(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen])
 
   // Initialize random positions for new evidence cards on the corkboard
   useEffect(() => {
@@ -123,8 +136,12 @@ export default function EvidenceBoard() {
       {/* HUD Board Button */}
       <button
         id="evidence-board-toggle"
+        type="button"
         className={`evidence-board-toggle ${isOpen ? 'active' : ''}`}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={(e) => {
+          e.stopPropagation()
+          setIsOpen(!isOpen)
+        }}
         title="Open Case Board (Detective Only)"
       >
         📌
@@ -133,9 +150,13 @@ export default function EvidenceBoard() {
         )}
       </button>
 
-      {/* Full-Screen Detective Corkboard */}
-      {isOpen && (
-        <div className="corkboard-screen-overlay" ref={containerRef}>
+      {/* Full-Screen Detective Corkboard via React Portal */}
+      {isOpen && ReactDOM.createPortal(
+        <div
+          className="corkboard-screen-overlay"
+          ref={containerRef}
+          onClick={(e) => e.stopPropagation()}
+        >
           {/* Header */}
           <div className="corkboard-header">
             <div className="header-left">
@@ -145,7 +166,11 @@ export default function EvidenceBoard() {
               {/* Tab Switcher */}
               <div style={{ display: 'flex', gap: '8px', marginLeft: '20px' }}>
                 <button
-                  onClick={() => setActiveTab('board')}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setActiveTab('board')
+                  }}
                   style={{
                     background: activeTab === 'board' ? '#b22222' : '#3b2a1a',
                     color: '#f5d0a9',
@@ -161,7 +186,11 @@ export default function EvidenceBoard() {
                   📌 Evidence Board ({evidenceBoard.length})
                 </button>
                 <button
-                  onClick={() => setActiveTab('dossier')}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setActiveTab('dossier')
+                  }}
                   style={{
                     background: activeTab === 'dossier' ? '#b22222' : '#3b2a1a',
                     color: '#f5d0a9',
@@ -183,10 +212,30 @@ export default function EvidenceBoard() {
               {activeTab === 'board' && correlateMode && (
                 <div className="correlation-alert animate-pulse">
                   LINKING MODE: Choose another card to connect with yarn string
-                  <button className="cancel-btn" onClick={() => { setCorrelateMode(false); setCorrelateFrom(null) }}>Cancel</button>
+                  <button
+                    type="button"
+                    className="cancel-btn"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setCorrelateMode(false)
+                      setCorrelateFrom(null)
+                    }}
+                  >
+                    Cancel
+                  </button>
                 </div>
               )}
-              <button className="close-corkboard-btn" onClick={() => setIsOpen(false)}>✕ CLOSE BOARD</button>
+              <button
+                type="button"
+                className="close-corkboard-btn"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  e.preventDefault()
+                  setIsOpen(false)
+                }}
+              >
+                ✕ CLOSE BOARD
+              </button>
             </div>
           </div>
 
@@ -582,17 +631,28 @@ export default function EvidenceBoard() {
               font-weight: bold;
             }
 
-            .yarn-details-panel button {
-              margin-top: 10px;
+            .close-corkboard-btn {
               background: #3b2a1a;
               color: #f5d0a9;
               border: 1px solid #5c402b;
-              padding: 4px 10px;
-              font-size: 11px;
-              cursor: pointer;
+              padding: 8px 16px;
+              cursor: pointer !important;
+              font-family: inherit;
+              font-weight: bold;
+              transition: all 0.2s;
+              position: relative;
+              z-index: 10002 !important;
+              pointer-events: auto !important;
+            }
+
+            .close-corkboard-btn:hover {
+              background: #b22222;
+              color: white;
+              border-color: #ef4444;
             }
           `}</style>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
