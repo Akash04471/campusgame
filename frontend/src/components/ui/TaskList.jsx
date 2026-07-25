@@ -241,7 +241,6 @@ function TaskItemCard({ task, isExpanded, onToggleExpand, activeTaskId, setActiv
       )}
     </motion.div>
   )
-  )
 }
 
 export default function TaskList() {
