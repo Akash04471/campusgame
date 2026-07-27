@@ -283,6 +283,7 @@ export default function App() {
   const playerId         = useGameStore((s) => s.playerId)
   const setCurrentScreen     = useGameStore((s) => s.setCurrentScreen)
   const setHasSeenCinematic  = useGameStore((s) => s.setHasSeenCinematic)
+  const updateOtherPlayer    = useGameStore((s) => s.updateOtherPlayer)
 
   useGameWebSocket(screen === 'game' && roomCode ? roomCode : null, playerId)
 
