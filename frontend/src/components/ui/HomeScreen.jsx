@@ -722,42 +722,58 @@ function WaitingRoom({ auth, room: init, onGameStarted, onClose }) {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 20 }}>
-          {isHost ? (
-            <>
+          {(() => {
+            const targetCount = room.max_players || 4
+            const currentCount = players.length
+            const hasJoinedTarget = currentCount >= targetCount
+            const allNonHostReady = players.filter(p => String(p.player_id || p.id) !== String(room.host_id)).every(p => p.is_ready)
+            const canStart = hasJoinedTarget && allNonHostReady
+
+            return isHost ? (
+              <>
+                <button
+                  onClick={startGame}
+                  disabled={!canStart}
+                  style={{
+                    width: '100%', padding: 12, border: 'none', borderRadius: 6,
+                    background: canStart
+                      ? 'linear-gradient(135deg, #7c3aed, #4f46e5)'
+                      : 'rgba(255,255,255,0.05)',
+                    color: canStart ? '#fff' : 'rgba(255,255,255,0.3)',
+                    fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: 12,
+                    cursor: canStart ? 'pointer' : 'not-allowed',
+                    letterSpacing: 1,
+                    boxShadow: canStart ? '0 4px 15px rgba(124,58,237,0.3)' : 'none',
+                    transition: 'all 0.2s'
+                  }}
+                  data-hover={canStart ? "true" : "false"}
+                >
+                  {!hasJoinedTarget
+                    ? `⏳ WAITING FOR PLAYERS TO JOIN (${currentCount}/${targetCount})`
+                    : !allNonHostReady
+                    ? `⏳ WAITING FOR ALL PLAYERS TO BE READY`
+                    : `▶ INITIATE CASE (${currentCount}/${targetCount})`}
+                </button>
+                {!hasJoinedTarget ? (
+                  <div style={{ textAlign: 'center', color: '#f59e0b', fontSize: 11, fontFamily: 'monospace', letterSpacing: 0.5 }}>
+                    ⚠️ Waiting for {targetCount - currentCount} more player(s) to join the room before starting.
+                  </div>
+                ) : !allNonHostReady ? (
+                  <div style={{ textAlign: 'center', color: '#ef4444', fontSize: 11, fontFamily: 'monospace', letterSpacing: 0.5 }}>
+                    ⚠️ Waiting for all joined players to signal READY.
+                  </div>
+                ) : null}
+              </>
+            ) : (
               <button
-                onClick={startGame}
-                disabled={!players.filter(p => String(p.player_id || p.id) !== String(room.host_id)).every(p => p.is_ready)}
-                style={{
-                  width: '100%', padding: 12, border: 'none', borderRadius: 6,
-                  background: players.filter(p => String(p.player_id || p.id) !== String(room.host_id)).every(p => p.is_ready)
-                    ? 'linear-gradient(135deg, #7c3aed, #4f46e5)'
-                    : 'rgba(255,255,255,0.05)',
-                  color: players.filter(p => String(p.player_id || p.id) !== String(room.host_id)).every(p => p.is_ready) ? '#fff' : 'rgba(255,255,255,0.3)',
-                  fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: 12,
-                  cursor: players.filter(p => String(p.player_id || p.id) !== String(room.host_id)).every(p => p.is_ready) ? 'pointer' : 'not-allowed',
-                  letterSpacing: 1,
-                  boxShadow: players.filter(p => String(p.player_id || p.id) !== String(room.host_id)).every(p => p.is_ready) ? '0 4px 15px rgba(124,58,237,0.3)' : 'none',
-                  transition: 'all 0.2s'
-                }}
-                data-hover={players.filter(p => String(p.player_id || p.id) !== String(room.host_id)).every(p => p.is_ready) ? "true" : "false"}
+                onClick={toggleReady}
+                style={{ width: '100%', padding: 12, border: `1.5px solid ${myPlayer?.is_ready ? '#22c55e' : 'rgba(6,182,212,0.5)'}`, borderRadius: 6, background: myPlayer?.is_ready ? 'rgba(34,197,94,0.1)' : 'rgba(6,182,212,0.05)', color: myPlayer?.is_ready ? '#86efac' : '#22d3ee', fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: 12, cursor: 'pointer', letterSpacing: 1 }}
+                data-hover
               >
-                ▶ INITIATE CASE
+                {myPlayer?.is_ready ? '✓ READY' : '○ SIGNAL READY'}
               </button>
-              {!players.filter(p => String(p.player_id || p.id) !== String(room.host_id)).every(p => p.is_ready) && (
-                <div style={{ textAlign: 'center', color: '#ef4444', fontSize: 11, fontFamily: 'monospace', letterSpacing: 0.5 }}>
-                  ⚠️ Waiting for all players to be ready.
-                </div>
-              )}
-            </>
-          ) : (
-            <button
-              onClick={toggleReady}
-              style={{ width: '100%', padding: 12, border: `1.5px solid ${myPlayer?.is_ready ? '#22c55e' : 'rgba(6,182,212,0.5)'}`, borderRadius: 6, background: myPlayer?.is_ready ? 'rgba(34,197,94,0.1)' : 'rgba(6,182,212,0.05)', color: myPlayer?.is_ready ? '#86efac' : '#22d3ee', fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: 12, cursor: 'pointer', letterSpacing: 1 }}
-              data-hover
-            >
-              {myPlayer?.is_ready ? '✓ READY' : '○ SIGNAL READY'}
-            </button>
-          )}
+            )
+          })()}
         </div>
       </div>
     </div>

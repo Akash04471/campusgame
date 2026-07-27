@@ -407,6 +407,14 @@ async def websocket_lobby_endpoint(websocket: WebSocket, room_code: str, player_
             elif action == "START_GAME":
                 if room.host_id != p_id:
                     continue
+                # Verify required player count has joined
+                if room.max_players > 1 and len(room.players) < room.max_players:
+                    await websocket.send_json({
+                        "type": "ERROR",
+                        "payload": {"message": f"Waiting for all {room.max_players} players to join the room before starting ({len(room.players)}/{room.max_players})."}
+                    })
+                    continue
+
                 # Verify all non-host players are ready
                 non_host_players = [p for p in room.players.values() if p.player_id != room.host_id]
                 if not all(p.is_ready for p in non_host_players):
@@ -418,6 +426,11 @@ async def websocket_lobby_endpoint(websocket: WebSocket, room_code: str, player_
                     continue
 
                 # Fill remaining slots up to 4 with Bot players so there are 4 distinct roles
+                bot_initial_positions = [
+                    [12.0, 0.5, -10.0],
+                    [-10.0, 0.5, 15.0],
+                    [20.0, 0.5, 5.0]
+                ]
                 if len(players) < 4:
                     dummy_count = 1
                     bot_names = ["Agent Maya (Bot)", "Officer Alex (Bot)", "Dr. Viktor (Bot)"]
@@ -457,6 +470,26 @@ async def websocket_lobby_endpoint(websocket: WebSocket, room_code: str, player_
                 gs.modifiers = result['modifiers']
                 gs.started_at = _time.time()
                 gs.is_active = True
+                gs.player_positions = {}
+                gs.bot_states = {}
+
+                # Pre-populate bot positions so they are visible from frame 1
+                bot_idx = 0
+                for pid in players:
+                    if pid >= 9000:
+                        b_pos = bot_initial_positions[bot_idx % len(bot_initial_positions)]
+                        gs.player_positions[str(pid)] = {
+                            'position': b_pos,
+                            'rotation': 0.0,
+                            'area': 'Campus',
+                            'durations': {}
+                        }
+                        gs.bot_states[str(pid)] = {
+                            'target_idx': bot_idx % len(BOT_WAYPOINTS),
+                            'curr_pos': list(b_pos),
+                            'progress_timer': 0
+                        }
+                        bot_idx += 1
                 active_game_states[room_code] = gs
 
                 # Generate world data

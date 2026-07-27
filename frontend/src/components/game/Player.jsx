@@ -300,7 +300,14 @@ function OtherPlayerCharacter({ data }) {
     if (data.rotation !== undefined) {
       targetRot.current = data.rotation
     }
-  }, [data.position?.x, data.position?.z, data.position, data.rotation])
+  }, [
+    data.position?.x,
+    data.position?.z,
+    Array.isArray(data.position) ? data.position[0] : null,
+    Array.isArray(data.position) ? data.position[2] : null,
+    data.position,
+    data.rotation
+  ])
 
   // Initialize position on mount
   useEffect(() => {
@@ -316,9 +323,10 @@ function OtherPlayerCharacter({ data }) {
         pz = data.position[2] ?? 0
       }
       groupRef.current.position.set(px, py, pz)
+      targetPos.current.set(px, py, pz)
       prevPos.current.copy(groupRef.current.position)
     }
-  }, [])
+  }, [data.position])
 
   useFrame((_, delta) => {
     if (!groupRef.current) return
