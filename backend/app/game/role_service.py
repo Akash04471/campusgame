@@ -3,6 +3,8 @@ import secrets
 from typing import Dict, List, Optional
 
 ROLE_DISTRIBUTIONS = {
+    2: ['DETECTIVE', 'MASTERMIND'],
+    3: ['DETECTIVE', 'INVESTIGATOR', 'MASTERMIND'],
     4: ['DETECTIVE', 'INVESTIGATOR', 'MASTERMIND', 'CONSPIRATOR'],
     5: ['DETECTIVE', 'INVESTIGATOR', 'INVESTIGATOR', 'MASTERMIND', 'CONSPIRATOR'],
     6: ['DETECTIVE', 'INVESTIGATOR', 'INVESTIGATOR', 'INVESTIGATOR', 'MASTERMIND', 'CONSPIRATOR'],
@@ -31,17 +33,14 @@ DIFFICULTY_MODIFIERS = {
 
 def assign_roles(player_ids: List[str], difficulty: str = 'standard') -> dict:
     """
-    Assigns roles based on player count per GDD spec.
+    Assigns roles based on player count (2 to 6 players).
     Returns assignments + per-player reveals + standard game modifiers.
-
-    The difficulty argument is accepted for API back-compatibility but is
-    ignored — all sessions now use the standard 10-minute ruleset.
     """
     player_count = len(player_ids)
-    if player_count not in ROLE_DISTRIBUTIONS:
-        raise ValueError(f"Unsupported player count: {player_count}. Must be 4, 5, or 6.")
+    if player_count < 2 or player_count > 6:
+        raise ValueError(f"Unsupported player count: {player_count}. Must be between 2 and 6.")
 
-    roles = ROLE_DISTRIBUTIONS[player_count].copy()
+    roles = ROLE_DISTRIBUTIONS.get(player_count, ROLE_DISTRIBUTIONS[6]).copy()
 
     # Cryptographically secure shuffle
     for i in range(len(roles) - 1, 0, -1):
@@ -52,9 +51,9 @@ def assign_roles(player_ids: List[str], difficulty: str = 'standard') -> dict:
     for i, player_id in enumerate(player_ids):
         assignments[player_id] = roles[i]
 
-    # Find villain pair
-    mastermind_id = next(pid for pid, role in assignments.items() if role == 'MASTERMIND')
-    conspirator_id = next(pid for pid, role in assignments.items() if role == 'CONSPIRATOR')
+    # Find mastermind and conspirator if present
+    mastermind_id = next((pid for pid, role in assignments.items() if role == 'MASTERMIND'), None)
+    conspirator_id = next((pid for pid, role in assignments.items() if role == 'CONSPIRATOR'), None)
 
     # Build per-player reveals
     reveals = {}
@@ -63,13 +62,13 @@ def assign_roles(player_ids: List[str], difficulty: str = 'standard') -> dict:
             reveals[player_id] = {
                 'role': role,
                 'partner_id': conspirator_id,
-                'partner_role': 'CONSPIRATOR',
+                'partner_role': 'CONSPIRATOR' if conspirator_id else None,
             }
         elif role == 'CONSPIRATOR':
             reveals[player_id] = {
                 'role': role,
                 'partner_id': mastermind_id,
-                'partner_role': 'MASTERMIND',
+                'partner_role': 'MASTERMIND' if mastermind_id else None,
             }
         else:
             reveals[player_id] = {

@@ -320,16 +320,9 @@ async def websocket_lobby_endpoint(websocket: WebSocket, room_code: str, player_
                     await websocket.send_json({"type": "ERROR", "payload": {"message": "Waiting for all players to be ready."}})
                     continue
                 players = list(room.players.keys())
-                # If less than 4 players, add bot/dummy players to fulfill role requirements
-                if len(players) < 4:
-                    dummy_count = 1
-                    while len(players) < 4:
-                        dummy_id = 9000 + dummy_count
-                        dummy_name = f"Bot_{dummy_count}"
-                        room.players[dummy_id] = PlayerLobbyState(dummy_id, dummy_name)
-                        room.players[dummy_id].is_ready = True
-                        players.append(dummy_id)
-                        dummy_count += 1
+                if len(players) < 2:
+                    await websocket.send_json({"type": "ERROR", "payload": {"message": "At least 2 players are required to start the game."}})
+                    continue
 
                 # Assign roles
                 player_ids_str = [str(pid) for pid in players]

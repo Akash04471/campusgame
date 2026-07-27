@@ -132,7 +132,11 @@ function useGameWebSocket(roomCode, playerId) {
           case 'ROLE_REVEAL':
             setRole(payload.role)
             setTimerSeconds(Math.min(payload.timer_seconds || 600, 600))  // cap at 10 min
-            if (payload.partner_id) setPartnerInfo({ partner_id: payload.partner_id, partner_name: payload.partner_name, partner_role: payload.partner_role })
+            if (payload.partner_id) {
+              setPartnerInfo({ partner_id: payload.partner_id, partner_name: payload.partner_name, partner_role: payload.partner_role })
+            } else {
+              setPartnerInfo(null)
+            }
             setGamePhase('role_reveal')
             break
           case 'GAME_STARTED': setNpcs(payload.npcs || []); break
@@ -142,7 +146,12 @@ function useGameWebSocket(roomCode, playerId) {
             setWorldEvidence(payload.evidence || [])
             if (payload.role) setRole(payload.role)
             if (typeof payload.time_remaining === 'number') setTimerSeconds(Math.min(payload.time_remaining, 600))
-            if (payload.game_phase) setGamePhase(payload.game_phase)
+            if (payload.game_phase) {
+              const currentPhase = useGameStore.getState().gamePhase
+              if (currentPhase !== 'role_reveal' || ['meeting', 'accusation', 'results'].includes(payload.game_phase)) {
+                setGamePhase(payload.game_phase)
+              }
+            }
             if (typeof payload.meeting_active === 'boolean') setMeetingActive(payload.meeting_active)
             if (typeof payload.meeting_time_remaining === 'number') setMeetingTimeRemaining(payload.meeting_time_remaining)
             if (payload.all_players) {

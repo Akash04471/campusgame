@@ -271,7 +271,8 @@ function RoleSculpture({ roleColor, role }) {
    MAIN COMPONENT — RoleRevealScreen
    ───────────────────────────────────────────── */
 export default function RoleRevealScreen({ onBegin }) {
-  const role = useGameStore((s) => s.role) || 'INVESTIGATOR'
+  const rawRole = useGameStore((s) => s.role) || 'INVESTIGATOR'
+  const role = String(rawRole).toUpperCase()
   const partnerInfo = useGameStore((s) => s.partnerInfo)
   const config = ROLE_CONFIGS[role] || ROLE_CONFIGS.INVESTIGATOR
 
@@ -283,14 +284,14 @@ export default function RoleRevealScreen({ onBegin }) {
     // Play role audio on load
     playRoleAudio(role)
 
-    // Stagger reveal animations sequentially (5-7 seconds total)
+    // Stagger reveal animations sequentially (3.2 seconds total to full unlock)
     const timers = [
-      setTimeout(() => setAnimStage(1), 500),   // Fade-in icon
-      setTimeout(() => setAnimStage(2), 1500),  // Animate game role title
-      setTimeout(() => setAnimStage(3), 2500),  // Fade in role tagline/description
-      setTimeout(() => setAnimStage(4), 3300),  // Stagger abilities
-      setTimeout(() => setAnimStage(5), 4500),  // Quote & teammate reveal
-      setTimeout(() => setAnimStage(6), 5500)   // Enable Continue button
+      setTimeout(() => setAnimStage(1), 300),   // Fade-in icon
+      setTimeout(() => setAnimStage(2), 800),   // Animate game role title
+      setTimeout(() => setAnimStage(3), 1400),  // Fade in role tagline/description
+      setTimeout(() => setAnimStage(4), 2000),  // Stagger abilities
+      setTimeout(() => setAnimStage(5), 2600),  // Quote & teammate reveal
+      setTimeout(() => setAnimStage(6), 3200)   // Enable Continue button
     ]
 
     return () => timers.forEach(clearTimeout)
@@ -367,14 +368,14 @@ export default function RoleRevealScreen({ onBegin }) {
         <div className={`cu-rr-meta-block ${animStage >= 5 ? 'cu-rr-visible' : ''}`}>
           <blockquote className="cu-rr-quote">{config.quote}</blockquote>
 
-          {partnerInfo?.partner_id && (
+          {partnerInfo && (partnerInfo.partner_name || partnerInfo.partner_id) && (
             <div className="cu-rr-partner-reveal">
               <p className="cu-rr-partner-label">CONFIRMED TEAMMATE</p>
               <div className="cu-rr-partner-card">
                 <span className="cu-rr-partner-icon">🤝</span>
                 <div className="cu-rr-partner-info">
-                  <span className="cu-rr-partner-name">{partnerInfo.partner_name || 'Agent'}</span>
-                  <span className="cu-rr-partner-role">{partnerInfo.partner_role}</span>
+                  <span className="cu-rr-partner-name">{partnerInfo.partner_name || `Agent #${partnerInfo.partner_id}`}</span>
+                  <span className="cu-rr-partner-role">{partnerInfo.partner_role || 'CO-CONSPIRATOR'}</span>
                 </div>
                 <span className="cu-rr-partner-warning">KEEP CLASSIFIED</span>
               </div>

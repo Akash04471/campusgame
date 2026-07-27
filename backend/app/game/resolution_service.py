@@ -29,8 +29,8 @@ def resolve_game(
     winner_faction = 'VILLAINS'
 
     if accusation:
-        correct_mm = accusation.get('mastermind_accusation') == mastermind_id
-        correct_co = accusation.get('conspirator_accusation') == conspirator_id
+        correct_mm = accusation.get('mastermind_accusation') == mastermind_id if mastermind_id else True
+        correct_co = accusation.get('conspirator_accusation') == conspirator_id if conspirator_id else True
         correct_accusation = correct_mm and correct_co
         if correct_accusation:
             winner_faction = 'INVESTIGATORS'

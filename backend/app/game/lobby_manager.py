@@ -28,7 +28,7 @@ class RoomLobbyState:
         self.room_code = room_code
         self.host_id = host_id
         self.difficulty = difficulty
-        self.max_players = max_players
+        self.max_players = max(2, min(6, max_players))
         self.status = "waiting"  # waiting, playing, finished
         self.players: Dict[int, PlayerLobbyState] = {}
 

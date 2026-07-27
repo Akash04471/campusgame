@@ -593,7 +593,7 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
             </p>
             <p style={{ fontSize: '0.78rem', color: '#64748b', fontFamily: 'monospace', marginBottom: 12 }}>All investigation sessions run for a fixed 10-minute window.</p>
             <p className="cu-modal-field-label" style={{ marginTop: 16 }}>MAX PLAYERS — {maxPlayers}</p>
-            <input type="range" min={2} max={10} value={maxPlayers} onChange={e => setMaxPlayers(+e.target.value)}
+            <input type="range" min={2} max={6} value={maxPlayers} onChange={e => setMaxPlayers(+e.target.value)}
               style={{ width: '100%', accentColor: '#dc2626' }} />
             <button className="cu-btn-primary" style={{ marginTop: 20, width: '100%' }} onClick={auth?.token ? createRoom : onPlay} disabled={loading} data-hover>
               <span className="cu-btn-shine" />
@@ -714,7 +714,7 @@ function WaitingRoom({ auth, room: init, onGameStarted, onClose }) {
               </span>
             </div>
           ))}
-          {Array.from({ length: Math.max(0, (room.max_players || 4) - players.length) }).map((_, i) => (
+          {Array.from({ length: Math.max(0, (room.max_players || 6) - players.length) }).map((_, i) => (
             <div key={`e${i}`} className="cu-waiting-player cu-waiting-empty">
               <span>— Awaiting agent connection...</span>
             </div>
