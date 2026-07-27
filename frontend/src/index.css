@@ -7141,42 +7141,166 @@ p.subtitle {
   margin-bottom: 0.5rem;
 }
 
-/* ── Task Card Styling ── */
-.task-item-card {
+/* ═══════════════════════════════════════════════════════════════════════════
+   OBJECTIVES CONSOLE MODAL — task card overrides
+   Higher specificity (.objectives-modal-container .task-item-card) ensures
+   these rules win over the base .task-item-card at line ~519 which has
+   overflow:hidden and different layout modes.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.objectives-modal-container .task-item-card {
   background: rgba(18, 14, 32, 0.94);
   border: 1px solid rgba(139, 92, 246, 0.28);
   border-left: 4px solid var(--priority-color, #8b5cf6);
   border-radius: 8px;
-  padding: 0.75rem 0.85rem 0.85rem;  /* slightly more bottom pad so buttons breathe */
-  display: flex;
-  flex-direction: column;
+  padding: 0.85rem 0.9rem 1rem 0.9rem; /* generous bottom padding */
+  display: flex !important;
+  flex-direction: column !important;
   gap: 0.4rem;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
   backdrop-filter: blur(10px);
   position: relative;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.45);
-  overflow: visible;  /* never clip children */
+  overflow: visible !important;   /* must override the base overflow:hidden */
+  cursor: pointer;
+  box-sizing: border-box;
+  transform: none !important;     /* prevent hover translateY from shrinking visible area */
 }
 
-.task-item-card:hover {
+.objectives-modal-container .task-item-card:hover {
   border-color: rgba(139, 92, 246, 0.6);
   background: rgba(24, 18, 44, 0.98);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+  transform: none !important;
 }
 
-.task-item-card.active-tracked {
+.objectives-modal-container .task-item-card.active-tracked {
   border-color: #38bdf8;
   box-shadow: 0 0 14px rgba(56, 189, 248, 0.35);
 }
 
-.task-item-card.task-started {
+.objectives-modal-container .task-item-card.task-started {
   border-color: #10b981;
   box-shadow: 0 0 14px rgba(16, 185, 129, 0.35);
 }
 
-.task-item-card.completed {
+.objectives-modal-container .task-item-card.completed {
   opacity: 0.6;
   border-color: rgba(255, 255, 255, 0.1);
 }
+
+.objectives-modal-container .task-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 0.5rem;
+  overflow: visible;
+}
+
+/* ─── ACTION BUTTONS ROW ─── */
+.objectives-modal-container .task-actions-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+  flex-shrink: 0;  /* never let the row compress */
+}
+
+.objectives-modal-container .task-btn-start,
+.objectives-modal-container .task-btn-track {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+  white-space: nowrap;
+  height: 34px;           /* fixed height so button never varies */
+  min-width: 0;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  border-style: solid;
+  border-width: 1.5px;
+  line-height: 1;
+  box-sizing: border-box;
+}
+
+/* START TASK — green */
+.objectives-modal-container .task-btn-start {
+  background: linear-gradient(150deg, #059669 0%, #065f46 100%);
+  border-color: #10b981;
+  color: #ecfdf5;
+  box-shadow: 0 2px 0 rgba(0,0,0,0.35), 0 0 12px rgba(16,185,129,0.4);
+}
+
+.objectives-modal-container .task-btn-start:hover {
+  background: linear-gradient(150deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  box-shadow: 0 3px 0 rgba(0,0,0,0.35), 0 0 20px rgba(16,185,129,0.6);
+  transform: translateY(-1px);
+}
+
+.objectives-modal-container .task-btn-start:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.35);
+}
+
+.objectives-modal-container .task-btn-start.started {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: #10b981;
+  color: #6ee7b7;
+  box-shadow: 0 0 0 2px rgba(16,185,129,0.3), 0 0 14px rgba(16,185,129,0.25);
+}
+
+/* TRACK MISSION — violet */
+.objectives-modal-container .task-btn-track {
+  background: linear-gradient(150deg, #6d28d9 0%, #4c1d95 100%);
+  border-color: #8b5cf6;
+  color: #ede9fe;
+  box-shadow: 0 2px 0 rgba(0,0,0,0.35), 0 0 12px rgba(139,92,246,0.4);
+}
+
+.objectives-modal-container .task-btn-track:hover {
+  background: linear-gradient(150deg, #7c3aed 0%, #6d28d9 100%);
+  color: #ffffff;
+  box-shadow: 0 3px 0 rgba(0,0,0,0.35), 0 0 20px rgba(139,92,246,0.6);
+  transform: translateY(-1px);
+}
+
+.objectives-modal-container .task-btn-track:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.35);
+}
+
+.objectives-modal-container .task-btn-track.tracked {
+  background: linear-gradient(150deg, #0e7490 0%, #0c4a6e 100%);
+  border-color: #38bdf8;
+  color: #e0f2fe;
+  box-shadow: 0 0 0 2px rgba(56,189,248,0.3), 0 0 14px rgba(56,189,248,0.35);
+}
+
+/* Zone Hint */
+.objectives-modal-container .task-zone-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1.5px solid #10b981;
+  color: #a7f3d0;
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  margin-top: 0.3rem;
+}
+
 
 /* Badge Bar */
 .task-card-badge-bar {
