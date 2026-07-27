@@ -550,7 +550,7 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
   const createRoom = async () => {
     setError(''); setLoading(true)
     try {
-      const room = await apiFetch('/api/v1/lobby/create', { method: 'POST', body: JSON.stringify({ difficulty: 'standard', max_players: maxPlayers }) }, auth.token)
+      const room = await apiFetch('/api/v1/lobby/create', { method: 'POST', body: JSON.stringify({ difficulty: 'medium', max_players: maxPlayers }) }, auth.token)
       onJoinedRoom(room)
     } catch (err) { setError(err.message) }
     setLoading(false)
