@@ -85,12 +85,12 @@ export default function MeetingScreen() {
           </div>
           <div className="meeting-header-row">
             <div>
-              <h2 className="meeting-title-new">🏛️ DISCUSS & VOTE</h2>
-              <p className="meeting-sub-new">Who is the Impostor?</p>
+              <h2 className="meeting-title-new">🏛️ DISCUSSION PHASE</h2>
+              <p className="meeting-sub-new">Discuss who the Conspirator and Mastermind are!</p>
             </div>
             <div className="meeting-timer-new">
-              <CountdownRing timeRemaining={meetingTimeRemaining} total={90} />
-              <span className="meeting-phase-label">{phase === 'discuss' ? 'DISCUSSION' : 'VOTING'}</span>
+              <CountdownRing timeRemaining={meetingTimeRemaining} total={120} />
+              <span className="meeting-phase-label">DISCUSSION</span>
             </div>
           </div>
         </div>

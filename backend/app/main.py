@@ -277,28 +277,18 @@ async def run_authoritative_game_loop(room_code: str):
                                     "payload": global_progress
                                 })
                                 if global_progress.get('percent', 0) >= 100:
-                                    gs.is_active = False
-                                    room.status = "finished"
-                                    db = SessionLocal()
-                                    try:
-                                        res = resolve_game(
-                                            room_code=room_code,
-                                            assignments=gs.assignments,
-                                            mastermind_id=gs.mastermind_id,
-                                            conspirator_id=gs.conspirator_id,
-                                            accusation=None,
-                                            player_names={str(pid): p.username for pid, p in room.players.items()},
-                                            session_db_id=getattr(gs, 'db_session_id', None),
-                                            db=db,
-                                        )
-                                        db.commit()
-                                    finally:
-                                        db.close()
-                                    await broadcast_to_room(room_code, {
-                                        "type": "GAME_OVER",
-                                        "payload": res
-                                    })
-                                    break
+                                    if not meeting_manager.get_active_meeting(room_code):
+                                        mtg = meeting_manager.start_meeting(room_code, "TASKS_COMPLETED")
+                                        if mtg:
+                                            await broadcast_to_room(room_code, {
+                                                "type": "MEETING_STARTED",
+                                                "payload": {
+                                                    **mtg.to_dict(),
+                                                    "triggered_by": "TASKS_COMPLETED",
+                                                    "time_remaining": 120,
+                                                    "topic": "Discuss who the Conspirator and Mastermind are!"
+                                                }
+                                            })
 
             # 7. Check game over due to time expiration
             if elapsed >= timer_limit:
@@ -1151,15 +1141,23 @@ async def websocket_game_endpoint(websocket: WebSocket, room_code: str, player_i
                 # Ticks are now server-authoritative. Clients sending heartbeats is a no-op.
                 pass
 
-            # ── Final Accusation ──
+            # ── Final Accusation / Decision Phase ──
             elif action == "SUBMIT_ACCUSATION":
-                # Only Detective can accuse
-                if gs.assignments.get(pid_str) != "DETECTIVE":
+                player_role = (gs.assignments.get(pid_str) or "").upper()
+                if player_role in ("MASTERMIND", "CONSPIRATOR"):
+                    await send_to_player(room_code, p_id, {
+                        "type": "ERROR",
+                        "payload": {"message": "Voting is disabled for Conspirator and Mastermind roles."}
+                    })
                     continue
+
                 accusation = {
                     "mastermind_accusation": data.get("mastermind_accusation"),
                     "conspirator_accusation": data.get("conspirator_accusation"),
+                    "voter_role": player_role,
+                    "voter_id": pid_str,
                 }
+                
                 db = SessionLocal()
                 try:
                     result = resolve_game(

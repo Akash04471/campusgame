@@ -2,7 +2,7 @@ import asyncio
 import time
 from typing import Dict, Optional, List
 
-MEETING_DURATION = 90  # seconds
+MEETING_DURATION = 120  # 2 minutes (120 seconds)
 
 
 class MeetingState:

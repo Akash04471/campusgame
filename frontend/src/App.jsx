@@ -233,12 +233,16 @@ function useGameWebSocket(roomCode, playerId) {
           case 'CHAT_MESSAGE': addChatMessage(payload); break
           case 'MEETING_STARTED':
             setMeetingActive(true)
-            setMeetingTimeRemaining(payload.time_remaining || 90)
+            setMeetingTimeRemaining(payload.time_remaining || 120)
             setGamePhase('meeting')
             break
           case 'MEETING_ENDED':
             setMeetingActive(false)
-            setGamePhase('exploration')
+            if (payload.resumed === false) {
+              setGamePhase('accusation')
+            } else {
+              setGamePhase('exploration')
+            }
             break
           case 'ABILITY_RESULT': if (payload.ability_id) updateAbility(payload); break
           case 'CCTV_REPORT': setCctvReport(payload); break
