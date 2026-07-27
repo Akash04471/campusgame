@@ -666,31 +666,35 @@ function WaitingRoom({ auth, room: init, onGameStarted, onClose }) {
   const wsRef = useRef(null)
   const setRoomCode = useGameStore(s => s.setRoomCode)
 
+  const myId = auth?.userId || auth?.user_id || auth?.id || 1
   const players = Array.isArray(room.players) ? room.players : Object.values(room.players || {})
-  const myPlayer = players.find(p => String(p.player_id || p.id) === String(auth?.userId))
-  const isHost = String(room.host_id) === String(auth?.userId)
+  const myPlayer = players.find(p => String(p.player_id || p.id) === String(myId))
+  const isHost = String(room.host_id) === String(myId) || String(room.room_code).startsWith('SOLO') || players.length === 1
 
   useEffect(() => {
-    if (!auth?.token) return
-    const wsUrl = `${getWsProtocol()}://${getBackendHost()}/ws/lobby/${room.room_code}/${auth.userId}?token=${encodeURIComponent(auth.token)}`
+    if (!auth?.token || String(room.room_code).startsWith('SOLO')) return
+    const wsUrl = `${getWsProtocol()}://${getBackendHost()}/ws/lobby/${room.room_code}/${myId}?token=${encodeURIComponent(auth.token)}`
     const ws = new WebSocket(wsUrl)
     wsRef.current = ws
     ws.onmessage = (e) => {
       try {
         const { type, payload } = JSON.parse(e.data)
         if (type === 'LOBBY_STATE' || type === 'LOBBY_STATE_UPDATE') setRoom(payload)
-        if (type === 'ROLE_REVEAL') onGameStarted(room.room_code, auth.userId, auth.username)
+        if (type === 'ROLE_REVEAL') onGameStarted(room.room_code, myId, auth.username)
       } catch {}
     }
     return () => ws.close()
-  }, [auth, room.room_code, onGameStarted])
+  }, [auth, room.room_code, myId, onGameStarted])
 
   const toggleReady = () => wsRef.current?.readyState === WebSocket.OPEN &&
     wsRef.current.send(JSON.stringify({ action: 'TOGGLE_READY' }))
 
   const startGame = () => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) wsRef.current.send(JSON.stringify({ action: 'START_GAME' }))
-    else onGameStarted(room.room_code, auth?.userId, auth?.username)
+    if (wsRef.current?.readyState === WebSocket.OPEN && !String(room.room_code).startsWith('SOLO')) {
+      wsRef.current.send(JSON.stringify({ action: 'START_GAME' }))
+    } else {
+      onGameStarted(room.room_code, myId, auth?.username || 'Agent')
+    }
   }
 
   const handleCopy = () => {

@@ -309,8 +309,8 @@ export default function App() {
   const handlePlay = useCallback(() => {
     setScreen('game')
     setCurrentScreen(SCREENS.GAMEPLAY)
-    if (!roomCode) {
-      // Offline / solo mode — seed demo state and show Role Reveal Screen
+    if (!roomCode || String(roomCode).startsWith('SOLO')) {
+      // Offline / solo mode — seed state and show Role Reveal Screen
       setGamePhase('role_reveal')
       setRole('DETECTIVE')
       setAbilities([
@@ -336,8 +336,13 @@ export default function App() {
         { npc_id: 'npc_2', name: 'Librarian Peter',        position: [-15,  15], state: 'idle' },
         { npc_id: 'npc_3', name: 'Security Guard Suresh',  position: [ 15, -15], state: 'idle' },
       ])
+
+      // Seed 3 bot players for solo mode so they appear on campus and radar
+      updateOtherPlayer('9001', { username: 'Agent Maya (Bot)', position: [12.0, 0.5, -10.0], rotation: 0, role: 'INVESTIGATOR' })
+      updateOtherPlayer('9002', { username: 'Officer Alex (Bot)', position: [-10.0, 0.5, 15.0], rotation: 0, role: 'MASTERMIND' })
+      updateOtherPlayer('9003', { username: 'Dr. Viktor (Bot)', position: [20.0, 0.5, 5.0], rotation: 0, role: 'CONSPIRATOR' })
     }
-  }, [roomCode, setGamePhase, setRole, setAbilities, setTasks, setWorldEvidence, setNpcs, setCurrentScreen])
+  }, [roomCode, setGamePhase, setRole, setAbilities, setTasks, setWorldEvidence, setNpcs, updateOtherPlayer, setCurrentScreen])
 
   const handleBeginInvestigation = useCallback(() => {
     setGamePhase('exploration')
