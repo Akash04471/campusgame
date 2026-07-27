@@ -23,6 +23,7 @@ from app.game.resolution_service import resolve_game
 from app.game.cctv_service import get_or_create_cctv_engine, cleanup_cctv_engine
 from app.game.correlation_engine import correlation_engine
 from app.game.suspect_dossier_service import suspect_dossier_engine
+from app.game.bot_chat_service import bot_chat_service
 from app.db.base import Base
 
 from app.db.session import engine, SessionLocal
@@ -289,6 +290,27 @@ async def run_authoritative_game_loop(room_code: str):
                                                     "topic": "Discuss who the Conspirator and Mastermind are!"
                                                 }
                                             })
+
+            # 6.6 Autonomous Bot Chat Tick
+            bot_players_list = [{'id': p.player_id, 'name': p.username} for p in room.players.values() if p.player_id >= 9000]
+            if bot_players_list:
+                if not hasattr(gs, 'bot_chat_timer'):
+                    gs.bot_chat_timer = 0
+                gs.bot_chat_timer += 1
+                chat_interval = 18 if (mtg and mtg.is_active) else 35
+                if gs.bot_chat_timer >= chat_interval:
+                    gs.bot_chat_timer = 0
+                    channel = 'meeting' if (mtg and mtg.is_active) else 'public'
+                    bot_msg = bot_chat_service.get_autonomous_message(
+                        room_code, gs.assignments, bot_players_list, channel=channel
+                    )
+                    if bot_msg:
+                        if channel == 'villain':
+                            vids = [int(p) for p, r in gs.assignments.items() if r in ("MASTERMIND", "CONSPIRATOR")]
+                            for vid in vids:
+                                await send_to_player(room_code, vid, {"type": "CHAT_MESSAGE", "payload": bot_msg})
+                        else:
+                            await broadcast_to_room(room_code, {"type": "CHAT_MESSAGE", "payload": bot_msg})
 
             # 7. Check game over due to time expiration
             if elapsed >= timer_limit:
@@ -1158,6 +1180,24 @@ async def websocket_game_endpoint(websocket: WebSocket, room_code: str, player_i
                             "timestamp": _time.time(),
                         }
                     })
+
+                # Schedule reactive response from bot player if human sent message
+                bot_players_list = [{'id': p.player_id, 'name': p.username} for p in room.players.values() if p.player_id >= 9000]
+                if bot_players_list and int(pid_str) < 9000:
+                    async def schedule_bot_reply(target_channel: str, user_msg: str):
+                        await asyncio.sleep(_rnd.uniform(1.8, 3.2))
+                        reply = bot_chat_service.get_reactive_response(
+                            room_code, gs.assignments, bot_players_list, user_msg, channel=target_channel
+                        )
+                        if reply:
+                            if target_channel == "villain":
+                                vids = [int(p) for p, r in gs.assignments.items() if r in ("MASTERMIND", "CONSPIRATOR")]
+                                for vid in vids:
+                                    await send_to_player(room_code, vid, {"type": "CHAT_MESSAGE", "payload": reply})
+                            else:
+                                await broadcast_to_room(room_code, {"type": "CHAT_MESSAGE", "payload": reply})
+
+                    asyncio.create_task(schedule_bot_reply(channel, message))
 
             # ── Meeting end ──
             elif action == "MEETING_END_ACK":
