@@ -131,7 +131,7 @@ function useGameWebSocket(roomCode, playerId) {
         switch (type) {
           case 'ROLE_REVEAL':
             setRole(payload.role)
-            setTimerSeconds(payload.timer_seconds || 600)
+            setTimerSeconds(Math.min(payload.timer_seconds || 600, 600))  // cap at 10 min
             if (payload.partner_id) setPartnerInfo({ partner_id: payload.partner_id, partner_name: payload.partner_name, partner_role: payload.partner_role })
             setGamePhase('role_reveal')
             break
@@ -141,7 +141,7 @@ function useGameWebSocket(roomCode, playerId) {
             setAbilities(payload.abilities || [])
             setWorldEvidence(payload.evidence || [])
             if (payload.role) setRole(payload.role)
-            if (typeof payload.time_remaining === 'number') setTimerSeconds(payload.time_remaining)
+            if (typeof payload.time_remaining === 'number') setTimerSeconds(Math.min(payload.time_remaining, 600))
             if (payload.game_phase) setGamePhase(payload.game_phase)
             if (typeof payload.meeting_active === 'boolean') setMeetingActive(payload.meeting_active)
             if (typeof payload.meeting_time_remaining === 'number') setMeetingTimeRemaining(payload.meeting_time_remaining)
@@ -161,7 +161,7 @@ function useGameWebSocket(roomCode, playerId) {
             }
             break
           case 'MATCH_TIMER_UPDATE':
-            if (typeof payload.time_remaining === 'number') setTimerSeconds(payload.time_remaining)
+            if (typeof payload.time_remaining === 'number') setTimerSeconds(Math.min(payload.time_remaining, 600))
             break
           case 'MEETING_TIMER_UPDATE':
             if (typeof payload.time_remaining === 'number') setMeetingTimeRemaining(payload.time_remaining)
