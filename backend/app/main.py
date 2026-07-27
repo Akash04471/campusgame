@@ -1,5 +1,6 @@
 import time as _time
 import asyncio
+import math
 import random as _rnd
 # pyrefly: ignore [missing-import]
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -119,6 +120,17 @@ async def push_dossier_update(room_code: str, gs: GameSessionState):
 import logging
 logger = logging.getLogger(__name__)
 
+BOT_WAYPOINTS = [
+    {"area": "Computer Lab", "position": [34.5, 0.5, 3.5]},
+    {"area": "Research Center", "position": [-30.5, 0.5, 43]},
+    {"area": "Security Office", "position": [-31.5, 0.5, 18]},
+    {"area": "MCA Department", "position": [19, 0.5, 18]},
+    {"area": "Main Block", "position": [-9, 0.5, -6]},
+    {"area": "Auditorium", "position": [-12, 0.5, -38]},
+    {"area": "Library", "position": [-30.5, 0.5, 29.5]},
+    {"area": "Cafeteria", "position": [34, 0.5, -22]}
+]
+
 async def run_authoritative_game_loop(room_code: str):
     logger.info(f"[Game Loop] Starting authoritative loop for room {room_code}")
     try:
@@ -196,6 +208,97 @@ async def run_authoritative_game_loop(room_code: str):
                 if npc_manager.obs_tick_counters[room_code] >= 10:
                     npc_manager.obs_tick_counters[room_code] = 0
                     npc_manager.run_observation_check(room_code, gs.player_positions, elapsed)
+
+            # 6.5. Tick Bot Players (if present)
+            bot_players = [p for p in room.players.values() if p.player_id >= 9000]
+            if bot_players:
+                if not hasattr(gs, 'bot_states'):
+                    gs.bot_states = {}
+                for bot in bot_players:
+                    bot_id_str = str(bot.player_id)
+                    bot_st = gs.bot_states.setdefault(bot_id_str, {
+                        'target_idx': _rnd.randint(0, len(BOT_WAYPOINTS) - 1),
+                        'curr_pos': [0.0, 0.5, -35.0],
+                        'progress_timer': 0
+                    })
+                    target_wp = BOT_WAYPOINTS[bot_st['target_idx']]
+                    tx, ty, tz = target_wp['position']
+                    cx, cy, cz = bot_st['curr_pos']
+
+                    dx = tx - cx
+                    dz = tz - cz
+                    dist = (dx * dx + dz * dz) ** 0.5
+
+                    if dist < 1.5:
+                        bot_st['target_idx'] = (bot_st['target_idx'] + 1) % len(BOT_WAYPOINTS)
+                    else:
+                        speed = 1.6
+                        bot_st['curr_pos'][0] += (dx / dist) * speed
+                        bot_st['curr_pos'][2] += (dz / dist) * speed
+
+                    rot = math.atan2(dx, dz)
+                    if not hasattr(gs, 'player_positions'):
+                        gs.player_positions = {}
+                    gs.player_positions[bot_id_str] = {
+                        'position': bot_st['curr_pos'],
+                        'rotation': rot,
+                        'area': target_wp['area'],
+                        'durations': {}
+                    }
+
+                    # Broadcast bot movement so client renders bot on 3D canvas and radar map
+                    await broadcast_to_room(room_code, {
+                        "type": "PLAYER_MOVED",
+                        "payload": {
+                            "player_id": bot_id_str,
+                            "position": bot_st['curr_pos'],
+                            "rotation": rot,
+                            "area": target_wp['area']
+                        }
+                    })
+
+                    # Bot task progression (every 3s)
+                    bot_st['progress_timer'] += 1
+                    if bot_st['progress_timer'] >= 3:
+                        bot_st['progress_timer'] = 0
+                        bot_tasks = task_manager.get_player_tasks(room_code, bot_id_str)
+                        active_task = next((t for t in bot_tasks if not t.get('completed')), None)
+                        if active_task:
+                            updated = task_manager.update_task_progress(room_code, bot_id_str, active_task['task_id'], 0.15)
+                            if updated:
+                                if updated.get('completed'):
+                                    await broadcast_to_room(room_code, {
+                                        "type": "TASK_COMPLETED",
+                                        "payload": {"player_id": bot_id_str, "task": updated}
+                                    })
+                                global_progress = task_manager.get_room_completion_percent(room_code)
+                                await broadcast_to_room(room_code, {
+                                    "type": "GLOBAL_TASK_PROGRESS",
+                                    "payload": global_progress
+                                })
+                                if global_progress.get('percent', 0) >= 100:
+                                    gs.is_active = False
+                                    room.status = "finished"
+                                    db = SessionLocal()
+                                    try:
+                                        res = resolve_game(
+                                            room_code=room_code,
+                                            assignments=gs.assignments,
+                                            mastermind_id=gs.mastermind_id,
+                                            conspirator_id=gs.conspirator_id,
+                                            accusation=None,
+                                            player_names={str(pid): p.username for pid, p in room.players.items()},
+                                            session_db_id=getattr(gs, 'db_session_id', None),
+                                            db=db,
+                                        )
+                                        db.commit()
+                                    finally:
+                                        db.close()
+                                    await broadcast_to_room(room_code, {
+                                        "type": "GAME_OVER",
+                                        "payload": res
+                                    })
+                                    break
 
             # 7. Check game over due to time expiration
             if elapsed >= timer_limit:
@@ -320,9 +423,21 @@ async def websocket_lobby_endpoint(websocket: WebSocket, room_code: str, player_
                     await websocket.send_json({"type": "ERROR", "payload": {"message": "Waiting for all players to be ready."}})
                     continue
                 players = list(room.players.keys())
-                if len(players) < 2:
-                    await websocket.send_json({"type": "ERROR", "payload": {"message": "At least 2 players are required to start the game."}})
+                if len(players) < 1:
+                    await websocket.send_json({"type": "ERROR", "payload": {"message": "At least 1 player is required to start the game."}})
                     continue
+
+                # Fill remaining slots up to 4 with Bot players so there are 4 distinct roles
+                if len(players) < 4:
+                    dummy_count = 1
+                    bot_names = ["Agent Maya (Bot)", "Officer Alex (Bot)", "Dr. Viktor (Bot)"]
+                    while len(players) < 4:
+                        dummy_id = 9000 + dummy_count
+                        dummy_name = bot_names[(dummy_count - 1) % len(bot_names)]
+                        room.players[dummy_id] = PlayerLobbyState(dummy_id, dummy_name)
+                        room.players[dummy_id].is_ready = True
+                        players.append(dummy_id)
+                        dummy_count += 1
 
                 # Assign roles
                 player_ids_str = [str(pid) for pid in players]

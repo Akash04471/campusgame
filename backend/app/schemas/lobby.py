@@ -3,7 +3,7 @@ from typing import List, Dict, Optional
 
 class RoomCreate(BaseModel):
     difficulty: str = Field("standard")  # fixed: always standard
-    max_players: int = Field(6, ge=2, le=6)
+    max_players: int = Field(6, ge=1, le=6)
 
 class RoomJoin(BaseModel):
     room_code: str = Field(..., min_length=6, max_length=6)

@@ -277,8 +277,8 @@ export default function App() {
     setScreen('game')
     setCurrentScreen(SCREENS.GAMEPLAY)
     if (!roomCode) {
-      // Offline / solo mode — seed demo state
-      setGamePhase('exploration')
+      // Offline / solo mode — seed demo state and show Role Reveal Screen
+      setGamePhase('role_reveal')
       setRole('DETECTIVE')
       setAbilities([
         { ability_id: 'CCTV_ANALYSIS',    name: 'CCTV Analysis',              description: 'Review surveillance from Security Office',       location_required: 'Security Office', duration_seconds: 90, cooldown_remaining: 0, is_on_cooldown: false, uses_remaining: 99, max_uses: 99 },

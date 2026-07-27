@@ -3,6 +3,7 @@ import secrets
 from typing import Dict, List, Optional
 
 ROLE_DISTRIBUTIONS = {
+    1: ['DETECTIVE'],
     2: ['DETECTIVE', 'MASTERMIND'],
     3: ['DETECTIVE', 'INVESTIGATOR', 'MASTERMIND'],
     4: ['DETECTIVE', 'INVESTIGATOR', 'MASTERMIND', 'CONSPIRATOR'],
@@ -33,14 +34,14 @@ DIFFICULTY_MODIFIERS = {
 
 def assign_roles(player_ids: List[str], difficulty: str = 'standard') -> dict:
     """
-    Assigns roles based on player count (2 to 6 players).
+    Assigns roles based on player count (1 to 6 players).
     Returns assignments + per-player reveals + standard game modifiers.
     """
     player_count = len(player_ids)
-    if player_count < 2 or player_count > 6:
-        raise ValueError(f"Unsupported player count: {player_count}. Must be between 2 and 6.")
+    if player_count < 1 or player_count > 6:
+        raise ValueError(f"Unsupported player count: {player_count}. Must be between 1 and 6.")
 
-    roles = ROLE_DISTRIBUTIONS.get(player_count, ROLE_DISTRIBUTIONS[6]).copy()
+    roles = ROLE_DISTRIBUTIONS.get(player_count, ROLE_DISTRIBUTIONS[4]).copy()
 
     # Cryptographically secure shuffle
     for i in range(len(roles) - 1, 0, -1):
