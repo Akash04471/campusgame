@@ -11,7 +11,7 @@ class GameSession(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     status = Column(String(20), default="waiting", nullable=False) # waiting, playing, finished
-    difficulty = Column(String(10), default="medium", nullable=False) # easy, medium, hard
+    difficulty = Column(String(10), default="standard", nullable=False) # standard (fixed 10-min game)
     winner_faction = Column(String(50), nullable=True) # Faction Detective/Investigators, Faction Villains
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     ended_at = Column(DateTime(timezone=True), nullable=True)

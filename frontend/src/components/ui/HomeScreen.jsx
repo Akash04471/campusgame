@@ -530,15 +530,10 @@ function AuthPanel({ isOpen, onAuth, onClose }) {
 /* ─────────────────────────────────────────────
    COMPONENT — Lobby Hub
    ───────────────────────────────────────────── */
-const DIFF = {
-  easy:   { label: 'EASY',   icon: '🟢', color: '#22c55e', desc: 'Dense evidence, high NPC reliability.' },
-  medium: { label: 'MEDIUM', icon: '🟡', color: '#f59e0b', desc: 'Standard security settings.' },
-  hard:   { label: 'HARD',   icon: '🔴', color: '#ef4444', desc: 'Sparse evidence, manipulated witnesses.' },
-}
+const STANDARD_GAME_LABEL = '10 MIN · STANDARD'
 
 function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
   const [tab, setTab] = useState('create')
-  const [diff, setDiff] = useState('medium')
   const [maxPlayers, setMaxPlayers] = useState(6)
   const [joinCode, setJoinCode] = useState('')
   const [rooms, setRooms] = useState([])
@@ -555,7 +550,7 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
   const createRoom = async () => {
     setError(''); setLoading(true)
     try {
-      const room = await apiFetch('/api/v1/lobby/create', { method: 'POST', body: JSON.stringify({ difficulty: diff, max_players: maxPlayers }) }, auth.token)
+      const room = await apiFetch('/api/v1/lobby/create', { method: 'POST', body: JSON.stringify({ difficulty: 'standard', max_players: maxPlayers }) }, auth.token)
       onJoinedRoom(room)
     } catch (err) { setError(err.message) }
     setLoading(false)
@@ -592,16 +587,11 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
 
         {tab === 'create' && (
           <div className="cu-modal-body">
-            <p className="cu-modal-field-label">DIFFICULTY</p>
-            <div className="cu-diff-grid">
-              {Object.entries(DIFF).map(([key, d]) => (
-                <button key={key} className={`cu-diff-btn ${diff === key ? 'cu-diff-active' : ''}`}
-                  style={{ '--diff-color': d.color }} onClick={() => setDiff(key)}>
-                  <span>{d.icon}</span><span>{d.label}</span>
-                </button>
-              ))}
-            </div>
-            <p className="cu-diff-desc">{DIFF[diff].desc}</p>
+            <p className="cu-modal-field-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              🕐 GAME MODE
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', color: '#06b6d4', background: 'rgba(6,182,212,0.1)', border: '1px solid rgba(6,182,212,0.3)', borderRadius: 4, padding: '2px 8px' }}>STANDARD — 10 MINUTES</span>
+            </p>
+            <p style={{ fontSize: '0.78rem', color: '#64748b', fontFamily: 'monospace', marginBottom: 12 }}>All investigation sessions run for a fixed 10-minute window.</p>
             <p className="cu-modal-field-label" style={{ marginTop: 16 }}>MAX PLAYERS — {maxPlayers}</p>
             <input type="range" min={2} max={10} value={maxPlayers} onChange={e => setMaxPlayers(+e.target.value)}
               style={{ width: '100%', accentColor: '#dc2626' }} />
@@ -639,7 +629,7 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
               : rooms.map(r => (
                 <div key={r.room_code} className="cu-room-row">
                   <code className="cu-room-code">{r.room_code}</code>
-                  <span className="cu-room-meta">{r.player_count}/{r.max_players} · {r.difficulty?.toUpperCase()}</span>
+                  <span className="cu-room-meta">{r.player_count}/{r.max_players} · {STANDARD_GAME_LABEL}</span>
                   <button className="cu-room-join-btn" onClick={() => joinRoom(r.room_code)} data-hover>CONNECT</button>
                 </div>
               ))}
@@ -707,7 +697,7 @@ function WaitingRoom({ auth, room: init, onGameStarted, onClose }) {
               {copied ? 'COPIED ✓' : 'COPY'}
             </button>
           </div>
-          <p className="cu-modal-agent">{room.difficulty?.toUpperCase()} · {players.length}/{room.max_players} agents online</p>
+          <p className="cu-modal-agent">{STANDARD_GAME_LABEL} · {players.length}/{room.max_players} agents online</p>
         </div>
 
         <div className="cu-waiting-players">
