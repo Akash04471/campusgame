@@ -125,6 +125,92 @@ sequenceDiagram
 
 ---
 
+## 🎯 Objectives System — Start Task & Track Mission Flow
+
+The in-game **Task & Objectives Console** drives the core gameplay loop for all four player roles. Every player receives a set of assigned tasks when the match begins (delivered by the `GAME_STATE` WebSocket message). Tasks are rendered through two complementary interactive mechanisms controlled by the **`TaskList`** component.
+
+### 📋 How Tasks Are Assigned
+
+When a match starts, the server broadcasts a `GAME_STATE` event containing each player's assigned task list. Tasks carry the following attributes:
+
+| Field | Description |
+| :--- | :--- |
+| `task_id` | Unique identifier for this task instance |
+| `task_type` | Canonical task key (e.g. `REPAIR_NETWORK`, `CHECK_CCTV`) |
+| `location` | Campus area name where the task must be performed |
+| `points` | Score awarded on completion |
+| `duration_seconds` | Estimated time to complete the task mini-game |
+| `progress` | Completion fraction from `0.0` → `1.0` |
+| `completed` | Boolean flag set by the server on full completion |
+
+Tasks are displayed with **role-aware descriptions** — the same `REPAIR_NETWORK` task type appears as *"Repair Network Terminal"* to an Investigator but as *"Install Keylogger on Terminal"* to a Conspirator, keeping the morally-opposed teams immersed in their own narrative.
+
+---
+
+### 🟢 Start Task Button
+
+**Behaviour**: Sets the task as the player's **active mission objective**, registering it in the global `taskStartedId` state. This signals the 3D world and the HUD that the player has committed to this task.
+
+**What happens when you click Start Task:**
+1. `taskStartedId` is set to this task's `task_id` in the Zustand store.
+2. `activeTaskId` is also synchronized so the **minimap waypoint tracker** draws a pulsing violet beacon and a dashed path from the player to the task's location.
+3. The **Task Compass** element orients toward the destination.
+4. If the player is already inside the correct campus zone, the **Objective Arrival Banner** (`🎯 OBJECTIVE REACHED`) appears at the bottom center of the HUD, prompting the player to press `E` (or tap Interact) to begin the task mini-game.
+5. Clicking the button again while a task is active (shown as **ACTIVE TASK** in green) deactivates it.
+
+> **Zone Hint**: When a started task's location matches the player's `currentArea`, an inline green hint bar — *"Objective Zone Reached! Hold E"* — is rendered inside the task card.
+
+---
+
+### 🔵 Track Mission Button
+
+**Behaviour**: Sets the task as the **tracked waypoint target** without committing the player to starting it. Updates `activeTaskId` only, leaving `taskStartedId` unchanged.
+
+**What happens when you click Track Mission:**
+1. `activeTaskId` is set to this task's `task_id`.
+2. The **Campus Radar Map** minimap draws a pulsing violet beacon and dashed navigation line pointing to the task's area.
+3. The **Task Compass** HUD element displays a directional bearing toward the tracked location.
+4. The compact **Objectives HUD Button** (top-right of screen) updates its subtitle preview to show the tracked task's location and name.
+5. Clicking **UNTRACK** removes the waypoint overlay.
+
+---
+
+### 🗺️ Minimap Waypoint System
+
+The `ChristUniversityMinimap` canvas component reads `activeTaskId` and `tasks` from the Zustand store. When an active (non-completed) task is found, it renders:
+
+- A **pulsing violet beacon ring** (animated via `Math.sin(Date.now())`) at the task's mapped world coordinates.
+- A **solid violet dot** (3.5px radius) at the task's destination.
+- A **dashed path line** from the player's position to the waypoint.
+
+Campus area world coordinates used for waypoint mapping:
+
+| Location | World Coords (X, Z) |
+| :--- | :--- |
+| Research Center | (28, −20) |
+| Computer Lab | (28, 0) |
+| Security Office | (−30, 4) |
+| MCA Department | (8, 14) |
+| Main Block | (−10, −8) |
+| Auditorium | (−28, −28) |
+| Library | (−24, 22) |
+| Cafeteria | (32, 16) |
+
+---
+
+### 🎮 Objectives Console Modal
+
+Opening the **OBJECTIVES** HUD button (top-right, with completion counter badge) launches a full-screen **Mission Objectives Console** modal portal. Inside:
+
+- A **global campus task completion progress bar** shows `X / N tasks (Y%)`.
+- **Filter tabs** — ALL / ACTIVE / COMPLETED — narrow the task list.
+- A **sort dropdown** orders tasks by: *Nearest First* (Euclidean distance), *Highest Priority* (CRITICAL > HIGH > MEDIUM > LOW), or *Highest Reward* (points).
+- An **Auto-Track** button instantly tracks and starts the highest-priority incomplete task nearest to the player.
+- Each task card expands to show the full mission description, estimated time, status, and the **Start Task** / **Track Mission** action buttons.
+- Pressing `Escape` or clicking the backdrop closes the modal.
+
+---
+
 ## 📂 Project Structure
 
 ```text
