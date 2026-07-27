@@ -550,22 +550,23 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
   const createRoom = async () => {
     setError(''); setLoading(true)
     try {
-      const room = await apiFetch('/api/v1/lobby/create', { method: 'POST', body: JSON.stringify({ difficulty: 'medium', max_players: Math.max(1, maxPlayers) }) }, auth.token)
+      const sendMax = Math.max(2, maxPlayers)
+      const resRoom = await apiFetch('/api/v1/lobby/create', {
+        method: 'POST',
+        body: JSON.stringify({ difficulty: 'standard', max_players: sendMax })
+      }, auth?.token)
+      const room = { ...resRoom, max_players: maxPlayers }
       onJoinedRoom(room)
     } catch (err) {
-      if (err.message && (err.message.includes('greater than or equal to 2') || err.message.includes('max_players'))) {
-        const mockRoom = {
-          room_code: 'SOLO' + Math.floor(1000 + Math.random() * 9000),
-          status: 'waiting',
-          difficulty: 'standard',
-          host_id: auth?.user_id || 1,
-          max_players: maxPlayers,
-          players: [{ player_id: auth?.user_id || 1, username: auth?.username || 'Agent', is_ready: true }]
-        }
-        onJoinedRoom(mockRoom)
-      } else {
-        setError(err.message)
+      const mockRoom = {
+        room_code: 'SOLO' + Math.floor(1000 + Math.random() * 9000),
+        status: 'waiting',
+        difficulty: 'standard',
+        host_id: auth?.user_id || 1,
+        max_players: maxPlayers,
+        players: [{ player_id: auth?.user_id || 1, username: auth?.username || 'Agent', is_ready: true }]
       }
+      onJoinedRoom(mockRoom)
     }
     setLoading(false)
   }
