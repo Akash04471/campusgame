@@ -349,6 +349,35 @@ export default function App() {
     setGamePhase('exploration')
   }, [setGamePhase])
 
+  // Solo mode autonomous bot chat loop
+  useEffect(() => {
+    if (screen === 'game' && (!roomCode || String(roomCode).startsWith('SOLO'))) {
+      const interval = setInterval(() => {
+        const state = useGameStore.getState()
+        const currentPhase = state.gamePhase
+        const ch = currentPhase === 'meeting' ? 'meeting' : 'public'
+        const botPool = currentPhase === 'meeting' ? [
+          { name: 'Agent Maya (Bot)', text: 'I completed all my assigned tasks in MCA Department and Library. I\'m clean.' },
+          { name: 'Officer Alex (Bot)', text: 'I saw someone near Research Center right before the evidence was wiped...' },
+          { name: 'Dr. Viktor (Bot)', text: 'I was archiving files in Library when the emergency alarm triggered.' }
+        ] : [
+          { name: 'Agent Maya (Bot)', text: 'Working on task at Library.' },
+          { name: 'Officer Alex (Bot)', text: 'Inspecting server logs in Computer Lab.' },
+          { name: 'Dr. Viktor (Bot)', text: 'Restocking lab supplies in Research Center.' }
+        ]
+        const pick = botPool[Math.floor(Math.random() * botPool.length)]
+        state.addChatMessage({
+          channel: ch,
+          sender_id: '900' + (Math.floor(Math.random() * 3) + 1),
+          sender_name: pick.name,
+          message: pick.text,
+          timestamp: Date.now() / 1000
+        })
+      }, 20000)
+      return () => clearInterval(interval)
+    }
+  }, [screen, roomCode])
+
   /* ── Render ── */
   if (screen === 'loading')          return <LoadingScreen    onFinish={handleLoadingFinish} />
   if (screen === 'splash')           return <SplashScreen     onUnleash={handleUnleash} />

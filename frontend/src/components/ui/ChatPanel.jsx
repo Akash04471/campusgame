@@ -8,7 +8,9 @@ const CHANNEL_CONFIG = {
 }
 
 function formatTime(ts) {
-  const d = new Date(ts * 1000)
+  if (!ts) return ''
+  const ms = ts > 100000000000 ? ts : ts * 1000
+  const d = new Date(ms)
   return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`
 }
 
@@ -19,8 +21,10 @@ export default function ChatPanel() {
   const role = useGameStore((s) => s.role)
   const setChatChannel = useGameStore((s) => s.setChatChannel)
   const toggleChat = useGameStore((s) => s.toggleChat)
+  const addChatMessage = useGameStore((s) => s.addChatMessage)
   const ws = useGameStore((s) => s.ws)
   const playerName = useGameStore((s) => s.playerName)
+  const playerId = useGameStore((s) => s.playerId)
 
   const [input, setInput] = useState('')
   const messagesEndRef = useRef(null)
@@ -60,20 +64,46 @@ export default function ChatPanel() {
   const sendMessage = () => {
     const msg = input.trim()
     if (!msg) return
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      console.warn('[Chat] Cannot send message: WebSocket is not open.')
-      return
-    }
-    try {
-      ws.send(JSON.stringify({
-        action: 'CHAT_MESSAGE',
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      try {
+        ws.send(JSON.stringify({
+          action: 'CHAT_MESSAGE',
+          channel: chatChannel,
+          message: msg,
+        }))
+      } catch (err) {
+        console.error('[Chat] Send failed:', err)
+      }
+    } else {
+      // Offline / Solo mode fallback
+      addChatMessage({
         channel: chatChannel,
+        sender_id: String(playerId || '1'),
+        sender_name: playerName || 'Agent',
         message: msg,
-      }))
-      setInput('')
-    } catch (err) {
-      console.error('[Chat] Send failed:', err)
+        timestamp: Date.now() / 1000
+      })
+
+      // Simulate reactive bot reply after 1.8s
+      setTimeout(() => {
+        const botPool = [
+          { name: 'Agent Maya (Bot)', text: 'Noted. I\'m focusing on completing campus tasks in Library.' },
+          { name: 'Officer Alex (Bot)', text: 'I checked the area nearby. Everything looks clear.' },
+          { name: 'Dr. Viktor (Bot)', text: 'Agreed. Let\'s make sure we inspect all workstation logs.' }
+        ]
+        const pick = botPool[Math.floor(Math.random() * botPool.length)]
+        addChatMessage({
+          channel: chatChannel,
+          sender_id: '9001',
+          sender_name: pick.name,
+          message: pick.text,
+          timestamp: Date.now() / 1000
+        })
+      }, 1800)
     }
+
+    setInput('')
   }
 
   const handleKeyDown = (e) => {
