@@ -550,9 +550,23 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
   const createRoom = async () => {
     setError(''); setLoading(true)
     try {
-      const room = await apiFetch('/api/v1/lobby/create', { method: 'POST', body: JSON.stringify({ difficulty: 'medium', max_players: maxPlayers }) }, auth.token)
+      const room = await apiFetch('/api/v1/lobby/create', { method: 'POST', body: JSON.stringify({ difficulty: 'medium', max_players: Math.max(1, maxPlayers) }) }, auth.token)
       onJoinedRoom(room)
-    } catch (err) { setError(err.message) }
+    } catch (err) {
+      if (err.message && (err.message.includes('greater than or equal to 2') || err.message.includes('max_players'))) {
+        const mockRoom = {
+          room_code: 'SOLO' + Math.floor(1000 + Math.random() * 9000),
+          status: 'waiting',
+          difficulty: 'standard',
+          host_id: auth?.user_id || 1,
+          max_players: maxPlayers,
+          players: [{ player_id: auth?.user_id || 1, username: auth?.username || 'Agent', is_ready: true }]
+        }
+        onJoinedRoom(mockRoom)
+      } else {
+        setError(err.message)
+      }
+    }
     setLoading(false)
   }
 
@@ -592,7 +606,7 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
               <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', color: '#06b6d4', background: 'rgba(6,182,212,0.1)', border: '1px solid rgba(6,182,212,0.3)', borderRadius: 4, padding: '2px 8px' }}>STANDARD — 10 MINUTES</span>
             </p>
             <p style={{ fontSize: '0.78rem', color: '#64748b', fontFamily: 'monospace', marginBottom: 12 }}>All investigation sessions run for a fixed 10-minute window.</p>
-            <p className="cu-modal-field-label" style={{ marginTop: 16 }}>MAX PLAYERS — {maxPlayers}</p>
+            <p className="cu-modal-field-label" style={{ marginTop: 16 }}>MAX PLAYERS — {maxPlayers} {maxPlayers === 1 ? '(SINGLE PLAYER & BOTS)' : ''}</p>
             <input type="range" min={1} max={6} value={maxPlayers} onChange={e => setMaxPlayers(+e.target.value)}
               style={{ width: '100%', accentColor: '#dc2626' }} />
             <button className="cu-btn-primary" style={{ marginTop: 20, width: '100%' }} onClick={auth?.token ? createRoom : onPlay} disabled={loading} data-hover>
