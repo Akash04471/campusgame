@@ -7,6 +7,7 @@ import SuspectDossier from './SuspectDossier'
 
 export default function EvidenceBoard() {
   const evidenceBoard = useGameStore((s) => s.evidenceBoard)
+  const investigationTimeline = useGameStore((s) => s.investigationTimeline) || []
   const correlations = useGameStore((s) => s.correlations)
   const addCorrelation = useGameStore((s) => s.addCorrelation)
   const ws = useGameStore((s) => s.ws)
@@ -189,6 +190,26 @@ export default function EvidenceBoard() {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation()
+                    setActiveTab('timeline')
+                  }}
+                  style={{
+                    background: activeTab === 'timeline' ? '#b22222' : '#3b2a1a',
+                    color: '#f5d0a9',
+                    border: '1px solid #5c402b',
+                    padding: '6px 14px',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '11px',
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontWeight: 'bold',
+                  }}
+                >
+                  ⏱️ Timeline ({investigationTimeline.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
                     setActiveTab('dossier')
                   }}
                   style={{
@@ -239,7 +260,31 @@ export default function EvidenceBoard() {
             </div>
           </div>
 
-          {activeTab === 'dossier' ? (
+          {activeTab === 'timeline' ? (
+            <div className="timeline-container" style={{ padding: '24px 40px', overflowY: 'auto', maxHeight: 'calc(100vh - 120px)', fontFamily: "'JetBrains Mono', monospace" }}>
+              <h3 style={{ color: '#f59e0b', fontSize: '15px', marginBottom: '16px', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>⏱️ INVESTIGATION TIMELINE LOG</h3>
+              {investigationTimeline.length === 0 ? (
+                <p style={{ color: '#8c7d6c', fontSize: '13px', fontStyle: 'italic' }}>No timeline events recorded yet. Collect evidence or monitor campus activity to build the case history.</p>
+              ) : (
+                <div className="timeline-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {investigationTimeline.slice().reverse().map((evt, idx) => (
+                    <div key={evt.event_id || evt.id || idx} style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', background: 'rgba(255,255,255,0.03)', borderLeft: evt.event_type === 'DEMOLISHED' ? '4px solid #ef4444' : evt.event_type === 'COLLECTED' ? '4px solid #10b981' : '4px solid #3b82f6', padding: '12px 16px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <span style={{ fontSize: '18px' }}>
+                        {evt.event_type === 'DEMOLISHED' ? '💥' : evt.event_type === 'COLLECTED' ? '📌' : evt.event_type === 'STATEMENT' ? '🗣️' : '⚡'}
+                      </span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                          <strong style={{ color: evt.event_type === 'DEMOLISHED' ? '#f87171' : evt.event_type === 'COLLECTED' ? '#34d399' : '#60a5fa', fontSize: '13px' }}>{evt.title || evt.event_type}</strong>
+                          <span style={{ color: '#94a3b8', fontSize: '11px' }}>📍 {evt.area || 'Campus'}</span>
+                        </div>
+                        <p style={{ color: '#e2e8f0', fontSize: '12px', margin: 0, lineHeight: '1.4' }}>{evt.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : activeTab === 'dossier' ? (
             <SuspectDossier />
           ) : (
             <>

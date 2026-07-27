@@ -764,7 +764,7 @@ async def websocket_game_endpoint(websocket: WebSocket, room_code: str, player_i
                     if detective_id:
                         await send_to_player(room_code, detective_id, {
                             "type": "EVIDENCE_BOARD_UPDATE",
-                            "payload": {"board": evidence_manager.get_detective_board(room_code)}
+                            "payload": evidence_manager.get_detective_board(room_code)
                         })
                         await push_dossier_update(room_code, gs)
 
@@ -887,8 +887,20 @@ async def websocket_game_endpoint(websocket: WebSocket, room_code: str, player_i
                             npc_manager.log_player_action(room_code, pid_str, 'EVIDENCE_DESTROYED', area_name)
                             await broadcast_to_room(room_code, {
                                 "type": "EVIDENCE_DESTROYED",
-                                "payload": {"evidence_id": ev_id}
+                                "payload": {
+                                    "evidence_id": ev_id,
+                                    "area": area_name,
+                                    "message": "Evidence has been demolished."
+                                }
                             })
+                            detective_id = next(
+                                (int(pid) for pid, role in gs.assignments.items() if role == 'DETECTIVE'), None
+                            )
+                            if detective_id:
+                                await send_to_player(room_code, detective_id, {
+                                    "type": "EVIDENCE_BOARD_UPDATE",
+                                    "payload": evidence_manager.get_detective_board(room_code)
+                                })
 
                     elif ability_id == "TRIGGER_MEETING":
                         if meeting_manager.can_trigger_mastermind_meeting(room_code):

@@ -156,7 +156,19 @@ const useGameStore = create((set, get) => ({
   setWorldEvidence: (ev) => set({ worldEvidence: ev }),
   addWorldEvidence: (item) => set((s) => ({ worldEvidence: [...s.worldEvidence, item] })),
   removeWorldEvidence: (id) => set((s) => ({ worldEvidence: s.worldEvidence.filter(e => e.evidence_id !== id) })),
-  setEvidenceBoard: (board) => set({ evidenceBoard: board }),
+  setEvidenceBoard: (payload) => set((s) => {
+    if (Array.isArray(payload)) return { evidenceBoard: payload }
+    return {
+      evidenceBoard: payload?.board || [],
+      investigationTimeline: payload?.timeline && payload.timeline.length > 0 ? payload.timeline : s.investigationTimeline
+    }
+  }),
+  addTimelineEvent: (evt) => set((s) => ({
+    investigationTimeline: [...s.investigationTimeline.filter(e => e.event_id !== evt.event_id), evt]
+  })),
+  setInvestigationTimeline: (list) => set({ investigationTimeline: list }),
+  showToast: (msg) => set({ toastMessage: msg }),
+  clearToast: () => set({ toastMessage: null }),
   addCorrelation: (a, b, data = null) => set((s) => ({
     correlations: [...s.correlations.filter(c => !(c[0] === a && c[1] === b || c[0] === b && c[1] === a)), [a, b, data]]
   })),

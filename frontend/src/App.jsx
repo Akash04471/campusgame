@@ -114,6 +114,8 @@ function useGameWebSocket(roomCode, playerId) {
   const setSuspectDossier = useGameStore((s) => s.setSuspectDossier)
   const setMovementTraceReport = useGameStore((s) => s.setMovementTraceReport)
   const setGlobalTaskPercent = useGameStore((s) => s.setGlobalTaskPercent)
+  const showToast = useGameStore((s) => s.showToast)
+  const addTimelineEvent = useGameStore((s) => s.addTimelineEvent)
   const token = useGameStore((s) => s.authToken)
 
   useEffect(() => {
@@ -179,6 +181,14 @@ function useGameWebSocket(roomCode, playerId) {
             if (payload.evidence) {
               removeWorldEvidence(payload.evidence.evidence_id)
               if (String(payload.collector_id) === String(playerId)) incrementEvidenceCollected()
+              addTimelineEvent({
+                event_id: 'col_' + payload.evidence.evidence_id,
+                event_type: 'COLLECTED',
+                title: 'Evidence Secured',
+                description: `Secured ${payload.evidence.evidence_type || 'PHYSICAL'} evidence in ${payload.evidence.area || 'campus'}.`,
+                area: payload.evidence.area || 'Campus',
+                timestamp: Date.now()
+              })
             }
             break
           case 'EVIDENCE_CARD':
@@ -189,6 +199,15 @@ function useGameWebSocket(roomCode, playerId) {
             break
           case 'EVIDENCE_DESTROYED':
             removeWorldEvidence(payload.evidence_id)
+            showToast(payload.message || 'Evidence has been demolished.')
+            addTimelineEvent({
+              event_id: 'dem_' + payload.evidence_id,
+              event_type: 'DEMOLISHED',
+              title: 'Evidence Demolished',
+              description: `Evidence in ${payload.area || 'campus'} has been demolished.`,
+              area: payload.area || 'Campus',
+              timestamp: Date.now()
+            })
             break
           case 'EVIDENCE_BOARD_UPDATE':
             setEvidenceBoard(payload.board || [])
@@ -200,7 +219,17 @@ function useGameWebSocket(roomCode, playerId) {
             setMovementTraceReport(payload)
             break
           case 'TASK_UPDATED': updateTask(payload); break
-          case 'NPC_STATEMENT': showNpcDialog({ npc_name: payload.npc_name, statement: payload.statement }); break
+          case 'NPC_STATEMENT':
+            showNpcDialog({ npc_name: payload.npc_name, statement: payload.statement })
+            addTimelineEvent({
+              event_id: 'npc_' + Date.now(),
+              event_type: 'STATEMENT',
+              title: 'Witness Statement Recorded',
+              description: `${payload.npc_name}: "${payload.statement}"`,
+              area: 'Witness Interview',
+              timestamp: Date.now()
+            })
+            break
           case 'CHAT_MESSAGE': addChatMessage(payload); break
           case 'MEETING_STARTED':
             setMeetingActive(true)

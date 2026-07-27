@@ -570,10 +570,60 @@ function ObjectiveArrivalBanner() {
   )
 }
 
+/* ── Global Notification Banner ── */
+function GlobalToastBanner() {
+  const toastMessage = useGameStore((s) => s.toastMessage)
+  const clearToast = useGameStore((s) => s.clearToast)
+
+  useEffect(() => {
+    if (!toastMessage) return
+    const timer = setTimeout(() => {
+      clearToast()
+    }, 4500)
+    return () => clearTimeout(timer)
+  }, [toastMessage, clearToast])
+
+  if (!toastMessage) return null
+
+  return (
+    <div
+      className="global-toast-banner"
+      id="global-toast-banner"
+      onClick={clearToast}
+      style={{
+        position: 'fixed',
+        top: '75px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 9999,
+        background: 'rgba(239, 68, 68, 0.95)',
+        color: '#ffffff',
+        padding: '10px 24px',
+        borderRadius: '6px',
+        border: '1.5px solid #f87171',
+        boxShadow: '0 8px 25px rgba(239, 68, 68, 0.45)',
+        fontFamily: "'JetBrains Mono', monospace",
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        cursor: 'pointer'
+      }}
+    >
+      <span style={{ fontSize: '1.2rem' }}>⚠️</span>
+      <div>
+        <strong style={{ display: 'block', fontSize: '0.75rem', letterSpacing: '1px', opacity: 0.9 }}>GLOBAL NOTICE</strong>
+        <span style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>{toastMessage}</span>
+      </div>
+      <span style={{ marginLeft: '12px', opacity: 0.7, fontSize: '0.8rem' }}>✕</span>
+    </div>
+  )
+}
+
 /* ── Full HUD ── */
 export default function GameHUD() {
   return (
     <div className="game-hud" id="game-hud">
+      <GlobalToastBanner />
       <div className="hud-top-bar">
         <RoleBadge />
         <Timer />

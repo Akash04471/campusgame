@@ -213,6 +213,33 @@ class EvidenceManager:
     def __init__(self):
         # room_code -> list of EvidenceItem
         self.room_evidence: Dict[str, List[EvidenceItem]] = {}
+        # room_code -> list of investigation timeline event dicts
+        self.room_timelines: Dict[str, List[dict]] = {}
+
+    def log_timeline_event(
+        self,
+        room_code: str,
+        event_type: str,
+        title: str,
+        description: str,
+        area: str,
+        metadata: Optional[dict] = None
+    ) -> dict:
+        timeline = self.room_timelines.setdefault(room_code, [])
+        event = {
+            'event_id': str(uuid.uuid4()),
+            'event_type': event_type,  # 'COLLECTED' | 'DEMOLISHED' | 'STATEMENT' | 'SABOTAGE'
+            'title': title,
+            'description': description,
+            'area': area,
+            'timestamp': time.time(),
+            'metadata': metadata or {}
+        }
+        timeline.append(event)
+        return event
+
+    def get_room_timeline(self, room_code: str) -> List[dict]:
+        return self.room_timelines.get(room_code, [])
 
     def determine_evidence_target(
         self,
@@ -227,13 +254,11 @@ class EvidenceManager:
         r = random.random()
 
         if difficulty.lower() == 'easy':
-            # 80% chance points to mastermind, 20% neutral
             if r < 0.80:
                 return actual_mastermind_id
             return None
 
         elif difficulty.lower() == 'medium':
-            # 70% mastermind, 20% neutral, 10% innocent
             if r < 0.70:
                 return actual_mastermind_id
             if r < 0.90:
@@ -241,7 +266,6 @@ class EvidenceManager:
             return random.choice(innocent_players)
 
         else:  # hard
-            # 60% mastermind, 20% neutral, 20% innocent
             if r < 0.60:
                 return actual_mastermind_id
             if r < 0.80:
@@ -280,7 +304,6 @@ class EvidenceManager:
         total_possible = len(all_spawn_points)
         active_count = int(total_possible * multiplier)
 
-        # Always include Research Center and Computer Lab (crime scene core)
         required_areas = {'Research Center', 'Computer Lab'}
         required_points = [(a, p) for a, p in all_spawn_points if a in required_areas]
         optional_points = [(a, p) for a, p in all_spawn_points if a not in required_areas]
@@ -308,6 +331,7 @@ class EvidenceManager:
             evidence_items.append(item)
 
         self.room_evidence[room_code] = evidence_items
+        self.room_timelines[room_code] = []
         return evidence_items
 
     def get_room_evidence(self, room_code: str) -> List[EvidenceItem]:
@@ -324,7 +348,16 @@ class EvidenceManager:
             if item.evidence_id == evidence_id and not item.is_collected and not item.is_destroyed:
                 item.is_collected = True
                 item.collected_by = collector_id
-                item.collected_timestamp = time.time()  # or simulated game time if needed
+                item.collected_timestamp = time.time()
+                # Automatically log evidence collection on the investigation timeline
+                self.log_timeline_event(
+                    room_code,
+                    event_type='COLLECTED',
+                    title='Evidence Secured',
+                    description=f'Secured {item.evidence_type} evidence in {item.area}.',
+                    area=item.area,
+                    metadata={'evidence_id': evidence_id, 'collector_id': collector_id}
+                )
                 return item
         return None
 
@@ -334,7 +367,15 @@ class EvidenceManager:
             if item.evidence_id == evidence_id and not item.is_collected and not item.is_destroyed and item.destruction_possible:
                 item.is_destroyed = True
                 item.destroyed_timestamp = time.time()
-                # Remove from active world list by setting flag
+                # Automatically log demolished evidence event on the investigation timeline
+                self.log_timeline_event(
+                    room_code,
+                    event_type='DEMOLISHED',
+                    title='Evidence Demolished',
+                    description=f'Evidence in {item.area} has been demolished.',
+                    area=item.area,
+                    metadata={'evidence_id': evidence_id}
+                )
                 return True
         return False
 
@@ -347,14 +388,11 @@ class EvidenceManager:
         difficulty: str = 'medium',
     ) -> Optional[EvidenceItem]:
         items = self.room_evidence.get(room_code, [])
-        # Limit 3 fabricated items per room
         fabricated_count = sum(1 for i in items if i.is_fabricated and not i.is_destroyed)
         if fabricated_count >= 3:
             return None
             
         reliability = round(random.uniform(0.3, 0.6), 2)
-        
-        # Select a suitable spawn point coordinates in the target area if available
         spawn_points = EVIDENCE_SPAWN_POINTS.get(area, [{'id': 'fake', 'position': {'x': 0.0, 'y': 0.5, 'z': 0.0}}])
         chosen_spawn = random.choice(spawn_points)
 
@@ -373,18 +411,22 @@ class EvidenceManager:
         return item
 
     def get_area_evidence(self, room_code: str, area: str) -> List[dict]:
-        """Public-facing evidence in an area (uncollected, undestroyed, shown in 3D world)."""
         return [
             i.to_dict() for i in self.room_evidence.get(room_code, [])
             if i.area == area and not i.is_collected and not i.is_destroyed
         ]
 
-    def get_detective_board(self, room_code: str) -> List[dict]:
-        """All collected evidence (and not destroyed) for the Detective's evidence board."""
-        return [
+    def get_detective_board(self, room_code: str) -> dict:
+        """Returns collected evidence and full investigation timeline for Detective's Canvas Board."""
+        collected = [
             i.to_dict() for i in self.room_evidence.get(room_code, [])
             if i.is_collected and not i.is_destroyed
         ]
+        return {
+            'board': collected,
+            'timeline': self.get_room_timeline(room_code)
+        }
 
 
 evidence_manager = EvidenceManager()
+
