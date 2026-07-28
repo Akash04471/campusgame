@@ -605,21 +605,13 @@ function Building({ b, onGroundClick }) {
 
 /* ── Skybox Night/Day Dome ── */
 function SkyAtmosphere() {
-  // Always day-time sky — no progressive darkening
   const skyColor = '#1e1b4b'
-  const horizonColor = '#ea580c'
 
   return (
-    <>
-      <mesh>
-        <sphereGeometry args={[95, 32, 32]} />
-        <meshBasicMaterial color={skyColor} side={THREE.BackSide} />
-      </mesh>
-      <mesh position={[0, -2, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[65, 95, 64]} />
-        <meshBasicMaterial color={horizonColor} side={THREE.DoubleSide} transparent opacity={0.5} />
-      </mesh>
-    </>
+    <mesh>
+      <sphereGeometry args={[350, 32, 32]} />
+      <meshBasicMaterial color={skyColor} side={THREE.BackSide} />
+    </mesh>
   )
 }
 

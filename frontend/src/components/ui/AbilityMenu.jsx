@@ -85,7 +85,7 @@ export default function AbilityMenu() {
   // Tab key toggle
   useEffect(() => {
     const handler = (e) => {
-      if (e.key === 'Tab') {
+      if (e.key === 'Tab' || e.code === 'Tab') {
         e.preventDefault()
         toggleAbilityMenu()
       }
@@ -214,7 +214,7 @@ export default function AbilityMenu() {
     <>
       {/* Tab hint */}
       {!abilityMenuOpen && (
-        <div className="ability-hint" id="ability-hint">
+        <div className="ability-hint" id="ability-hint" onClick={toggleAbilityMenu} style={{ cursor: 'pointer' }}>
           <kbd>Tab</kbd> Abilities
         </div>
       )}

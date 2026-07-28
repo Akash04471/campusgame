@@ -489,13 +489,15 @@ function NPCDialog() {
 
 /* ── Controls Hint ── */
 function ControlsHint() {
+  const toggleAbilityMenu = useGameStore((s) => s.toggleAbilityMenu)
+
   return (
     <div className="hud-controls" id="controls-hint">
       <span><kbd>WASD</kbd> Move</span>
       <span><kbd>Shift</kbd> Sprint</span>
       <span><kbd>E</kbd> Interact</span>
       <span><kbd>T</kbd> Chat</span>
-      <span><kbd>Tab</kbd> Abilities</span>
+      <span onClick={toggleAbilityMenu} style={{ cursor: 'pointer' }}><kbd>Tab</kbd> Abilities</span>
     </div>
   )
 }

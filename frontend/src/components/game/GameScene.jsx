@@ -54,8 +54,8 @@ function LocationReveal() {
 }
 
 const DAY_FOG_COLOR = '#1e1b4b'
-const FOG_NEAR = 38
-const FOG_FAR = 130
+const FOG_NEAR = 100
+const FOG_FAR = 400
 
 export default function GameScene() {
 
@@ -74,10 +74,10 @@ export default function GameScene() {
           position: [0, 5.5, 14],
           fov: 62,
           near: 0.1,
-          far: 220,
+          far: 450,
         }}
       >
-        {/* Static day-time fog — no progressive darkening */}
+        {/* Clear wide fog range */}
         <fog attach="fog" args={[DAY_FOG_COLOR, FOG_NEAR, FOG_FAR]} />
         <color attach="background" args={[DAY_FOG_COLOR]} />
 
