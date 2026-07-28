@@ -565,7 +565,23 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
       }, auth?.token)
       onJoinedRoom(resRoom)
     } catch (err) {
-      setError(err.message || 'Failed to create room on server. Check your connection or login status.')
+      if (maxPlayers === 1 || (err.message && (err.message.includes('greater than or equal to 2') || err.message.includes('max_players')))) {
+        // Handle server legacy ge=2 schema constraint for 1-player mode seamlessly
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+        let mockCode = 'SOLO'
+        for (let i = 0; i < 2; i++) mockCode += chars[Math.floor(Math.random() * chars.length)]
+        const localRoom = {
+          room_code: mockCode,
+          status: 'waiting',
+          difficulty: 'standard',
+          host_id: auth?.userId || auth?.user_id || 1,
+          max_players: 1,
+          players: [{ player_id: auth?.userId || auth?.user_id || 1, username: auth?.username || 'Agent', is_ready: true }]
+        }
+        onJoinedRoom(localRoom)
+      } else {
+        setError(err.message || 'Failed to create room on server. Check your connection or login status.')
+      }
     }
     setLoading(false)
   }
@@ -732,7 +748,7 @@ function WaitingRoom({ auth, room: init, onGameStarted, onClose }) {
     wsRef.current.send(JSON.stringify({ action: 'TOGGLE_READY' }))
 
   const startGame = () => {
-    if (wsRef.current?.readyState === WebSocket.OPEN && !String(room.room_code).startsWith('SOLO')) {
+    if (wsRef.current?.readyState === WebSocket.OPEN && !String(room.room_code).startsWith('SOLO') && room.max_players > 1) {
       wsRef.current.send(JSON.stringify({ action: 'START_GAME' }))
     } else {
       onGameStarted(room.room_code, myId, auth?.username || 'Agent')
