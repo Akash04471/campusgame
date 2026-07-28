@@ -408,6 +408,77 @@ export default function App() {
     }
   }, [screen, roomCode])
 
+  // Solo mode: autonomous bot movement loop
+  useEffect(() => {
+    if (screen !== 'game' || (roomCode && !String(roomCode).startsWith('SOLO'))) return
+
+    const CAMPUS_WAYPOINTS = [
+      [34.5, 0.5, 3.5],   // Computer Lab
+      [-30.5, 0.5, 29.5], // Library
+      [34.0, 0.5, -22.0], // Cafeteria
+      [-30.5, 0.5, 43.0], // Research Center
+      [-31.5, 0.5, 18.0], // Security Office
+      [-9.0, 0.5, -6.0],  // Main Block
+      [-12.0, 0.5, -38.0],// Auditorium
+      [19.0, 0.5, -2.0],  // Park Garden
+    ]
+
+    const botTargets = {
+      '9001': { wpIdx: 0, currPos: [12.0, 0.5, -10.0] },
+      '9002': { wpIdx: 2, currPos: [-10.0, 0.5, 15.0] },
+      '9003': { wpIdx: 5, currPos: [20.0, 0.5, 5.0] },
+    }
+
+    const BOT_NAMES = {
+      '9001': 'Agent Maya (Bot)',
+      '9002': 'Officer Alex (Bot)',
+      '9003': 'Dr. Viktor (Bot)',
+    }
+    const BOT_ROLES = {
+      '9001': 'INVESTIGATOR',
+      '9002': 'MASTERMIND',
+      '9003': 'CONSPIRATOR',
+    }
+
+    const movementInterval = setInterval(() => {
+      const state = useGameStore.getState()
+      if (state.gamePhase === 'decision' || state.gamePhase === 'results') return
+
+      Object.keys(botTargets).forEach(pid => {
+        const bt = botTargets[pid]
+        const target = CAMPUS_WAYPOINTS[bt.wpIdx]
+        const [cx, cy, cz] = bt.currPos
+        const [tx, , tz] = target
+        const dx = tx - cx
+        const dz = tz - cz
+        const dist = Math.sqrt(dx * dx + dz * dz)
+
+        const speed = 5.5 // units per tick
+        let newX, newZ
+        if (dist < 1.5) {
+          // Arrived — pick next random waypoint
+          bt.wpIdx = (bt.wpIdx + 1 + Math.floor(Math.random() * 3)) % CAMPUS_WAYPOINTS.length
+          newX = cx; newZ = cz
+        } else {
+          newX = cx + (dx / dist) * Math.min(speed, dist)
+          newZ = cz + (dz / dist) * Math.min(speed, dist)
+        }
+
+        bt.currPos = [newX, cy, newZ]
+        const rot = Math.atan2(dx, dz)
+
+        state.updateOtherPlayer(pid, {
+          username: BOT_NAMES[pid],
+          position: [newX, cy, newZ],
+          rotation: rot,
+          role: BOT_ROLES[pid],
+        })
+      })
+    }, 350)
+
+    return () => clearInterval(movementInterval)
+  }, [screen, roomCode])
+
   /* ── Render ── */
   if (screen === 'loading')          return <LoadingScreen    onFinish={handleLoadingFinish} />
   if (screen === 'splash')           return <SplashScreen     onUnleash={handleUnleash} />

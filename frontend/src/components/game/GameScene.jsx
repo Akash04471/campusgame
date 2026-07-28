@@ -53,18 +53,11 @@ function LocationReveal() {
   )
 }
 
-const dayFogColor = new THREE.Color('#1e1b4b')
-const nightFogColor = new THREE.Color('#18182b')
+const DAY_FOG_COLOR = '#1e1b4b'
+const FOG_NEAR = 38
+const FOG_FAR = 130
 
 export default function GameScene() {
-  const timeRemaining = useGameStore((s) => s.timeRemaining)
-  const timerSeconds = useGameStore((s) => s.timerSeconds)
-  const elapsed = Math.max(0, timerSeconds - timeRemaining)
-  const nightFactor = Math.min(1.0, elapsed / 600)
-
-  const fogColor = dayFogColor.clone().lerp(nightFogColor, nightFactor).getStyle()
-  const fogNear = THREE.MathUtils.lerp(35, 45, nightFactor)
-  const fogFar = THREE.MathUtils.lerp(120, 150, nightFactor)
 
 
   return (
@@ -84,9 +77,9 @@ export default function GameScene() {
           far: 220,
         }}
       >
-        {/* Cinematic dynamic fog */}
-        <fog attach="fog" args={[fogColor, fogNear, fogFar]} />
-        <color attach="background" args={[fogColor]} />
+        {/* Static day-time fog — no progressive darkening */}
+        <fog attach="fog" args={[DAY_FOG_COLOR, FOG_NEAR, FOG_FAR]} />
+        <color attach="background" args={[DAY_FOG_COLOR]} />
 
         <Suspense fallback={<SceneLoader />}>
           <CampusMap />

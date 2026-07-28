@@ -287,9 +287,10 @@ const useGameStore = create((set, get) => ({
       detectiveChoice: null,
       investigatorChoices: {},
       submitted: { detective: false, investigators: {} },
-      timeoutSeconds: 60,
+      timeoutSeconds: 20,
     }
   }),
+
 
 
 

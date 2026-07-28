@@ -27,7 +27,8 @@ const ROLE_OUTFIT = {
 }
 
 /* ── 3D Human Student Mesh ── */
-function StudentBody({ role, isWalking, isRunning, bodyRef, customOutfit }) {
+export { ROLE_OUTFIT }
+export function StudentBody({ role, isWalking, isRunning, bodyRef, customOutfit }) {
   const outfit = customOutfit || ROLE_OUTFIT[role] || ROLE_OUTFIT.default
   const legSwingRef = useRef(0)
 

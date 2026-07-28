@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import useGameStore from '../../store/gameStore'
 import useDecisionPhaseAudio from '../../utils/useDecisionPhaseAudio'
 import MuteToggleButton from './MuteToggleButton'
@@ -31,8 +31,15 @@ export default function DecisionPhaseScreen() {
   // Local selection state before submitting
   const [selectedCandidate, setSelectedCandidate] = useState(null)
 
-  // Timer countdown for disconnect / resolution fallback
-  const [timerSeconds, setTimerSeconds] = useState(60)
+  // Timer countdown for disconnect / resolution fallback (20-second duration)
+  const [timerSeconds, setTimerSeconds] = useState(20)
+
+  // Sync with server-authoritative timer updates if available
+  useEffect(() => {
+    if (decisionPhase?.timeRemaining !== undefined) {
+      setTimerSeconds(decisionPhase.timeRemaining)
+    }
+  }, [decisionPhase?.timeRemaining])
 
   const normalizedRole = (role || '').toUpperCase()
   const isDetective = normalizedRole === 'DETECTIVE'
@@ -77,6 +84,91 @@ export default function DecisionPhaseScreen() {
     }, 1000)
     return () => clearInterval(interval)
   }, [gamePhase])
+
+  // ── Solo-mode auto bot voting ──────────────────────────────────────────────
+  // When there is no WebSocket (SOLO mode), automatically make bots vote after
+  // a short delay and push a GAME_OVER result to the store so the Results
+  // Screen appears without needing a real backend.
+  const soloBotVotedRef = useRef(false)
+  useEffect(() => {
+    if (gamePhase !== 'decision' && gamePhase !== 'accusation') {
+      soloBotVotedRef.current = false
+      return
+    }
+    if (ws && ws.readyState === WebSocket.OPEN) return  // multiplayer — let backend handle it
+    if (soloBotVotedRef.current) return
+
+    const delay = 5000 + Math.random() * 3000  // 5-8s
+    const timeout = setTimeout(() => {
+      if (soloBotVotedRef.current) return
+      soloBotVotedRef.current = true
+
+      const state = useGameStore.getState()
+      const myRole = (state.role || 'DETECTIVE').toUpperCase()
+
+      // Solo assignments: player=DETECTIVE, 9001=INVESTIGATOR, 9002=MASTERMIND, 9003=CONSPIRATOR
+      const soloConspiratorId = '9003'
+      const soloMastermindId  = '9002'
+
+      // Bots pick a random non-self target (from the 4 players)
+      const allIds = [String(state.playerId || '1'), '9001', '9002', '9003']
+      const randTarget = (excludeId) => allIds.filter(id => id !== excludeId)[Math.floor(Math.random() * (allIds.length - 1))]
+
+      const detectiveGuess   = state.decisionPhase?.detectiveChoice   || (myRole === 'DETECTIVE' ? null : randTarget(String(state.playerId || '1')))
+      const investigatorGuess = state.decisionPhase?.investigatorChoices?.['9001'] || randTarget('9001')
+
+      const detectiveCorrect   = detectiveGuess   === soloConspiratorId
+      const investigatorCorrect = investigatorGuess === soloMastermindId
+      const investigatorsWon   = detectiveCorrect && investigatorCorrect
+
+      const result = {
+        winner_faction: investigatorsWon ? 'INVESTIGATORS' : 'VILLAINS',
+        winningRoles: investigatorsWon ? ['DETECTIVE', 'INVESTIGATOR'] : ['MASTERMIND', 'CONSPIRATOR'],
+        mastermind_id: soloMastermindId,
+        conspirator_id: soloConspiratorId,
+        actualConspirator: { id: soloConspiratorId, name: 'Dr. Viktor (Bot)' },
+        actualMastermind:  { id: soloMastermindId,  name: 'Officer Alex (Bot)' },
+        detective: {
+          playerId: String(state.playerId || '1'),
+          guess: detectiveGuess,
+          guessName: detectiveGuess ? (detectiveGuess === '9001' ? 'Agent Maya (Bot)' : detectiveGuess === '9002' ? 'Officer Alex (Bot)' : detectiveGuess === '9003' ? 'Dr. Viktor (Bot)' : 'You') : 'None',
+          correct: detectiveCorrect,
+        },
+        investigators: {
+          success: true,
+          finalGuess: investigatorGuess,
+          finalGuessName: investigatorGuess === '9002' ? 'Officer Alex (Bot)' : investigatorGuess === '9001' ? 'Agent Maya (Bot)' : investigatorGuess === '9003' ? 'Dr. Viktor (Bot)' : 'You',
+          correct: investigatorCorrect,
+          voteCounts: { [investigatorGuess]: 1 },
+          failMessage: '',
+        },
+        detectiveCorrect,
+        investigatorVoteResult: { success: true, correct: investigatorCorrect },
+        player_stats: [
+          { player_id: String(state.playerId || '1'), username: 'You', role: myRole, points_earned: detectiveCorrect ? 100 : 30, tasks_completed: 2 },
+          { player_id: '9001', username: 'Agent Maya (Bot)', role: 'INVESTIGATOR', points_earned: investigatorCorrect ? 80 : 20, tasks_completed: 3 },
+          { player_id: '9002', username: 'Officer Alex (Bot)', role: 'MASTERMIND', points_earned: investigatorsWon ? 0 : 90, tasks_completed: 3 },
+          { player_id: '9003', username: 'Dr. Viktor (Bot)', role: 'CONSPIRATOR', points_earned: investigatorsWon ? 0 : 90, tasks_completed: 2 },
+        ],
+        all_roles: {
+          [String(state.playerId || '1')]: myRole,
+          '9001': 'INVESTIGATOR',
+          '9002': 'MASTERMIND',
+          '9003': 'CONSPIRATOR',
+        },
+        player_names: {
+          [String(state.playerId || '1')]: 'You',
+          '9001': 'Agent Maya (Bot)',
+          '9002': 'Officer Alex (Bot)',
+          '9003': 'Dr. Viktor (Bot)',
+        },
+      }
+
+      state.setGameResult(result)
+    }, delay)
+    return () => clearTimeout(timeout)
+  }, [gamePhase, ws])
+
 
 
   if (gamePhase !== 'decision' && gamePhase !== 'accusation') return null
@@ -282,6 +374,11 @@ export default function DecisionPhaseScreen() {
               <p style={{ fontSize: '1.15rem', color: '#f87171', fontFamily: "'JetBrains Mono', monospace", fontWeight: 'bold' }}>
                 The Detective and Investigators are making their decisions...
               </p>
+              <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                {['Agent Maya', 'Officer Alex'].map(name => (
+                  <span key={name} style={{ fontSize: '0.75rem', padding: '4px 10px', borderRadius: '12px', background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)', color: '#93c5fd' }}>🧩 {name} voting...</span>
+                ))}
+              </div>
             </div>
           </div>
         )}

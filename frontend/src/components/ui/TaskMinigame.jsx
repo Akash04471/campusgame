@@ -391,6 +391,7 @@ export default function TaskMinigame() {
   const taskType = activeMinigameTask.task_type
 
   const handleSuccess = () => {
+    audioManager.playSfx('taskComplete')
     // Always mark task as completed locally in store immediately
     updateTask({ ...activeMinigameTask, progress: 1.0, completed: true })
 
@@ -404,6 +405,7 @@ export default function TaskMinigame() {
     }
     closeMinigame()
   }
+
 
   const handleCancel = () => {
     closeMinigame()

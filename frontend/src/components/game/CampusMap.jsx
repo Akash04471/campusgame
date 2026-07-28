@@ -592,7 +592,7 @@ function Building({ b, onGroundClick }) {
                   roughness={0.15}
                   metalness={0.9}
                   emissive="#fef08a"
-                  emissiveIntensity={nightFactor * 2.0}
+                  emissiveIntensity={0.3}
                 />
               </mesh>
             </group>
@@ -605,13 +605,9 @@ function Building({ b, onGroundClick }) {
 
 /* ── Skybox Night/Day Dome ── */
 function SkyAtmosphere() {
-  const timeRemaining = useGameStore((s) => s.timeRemaining)
-  const timerSeconds = useGameStore((s) => s.timerSeconds)
-  const elapsed = Math.max(0, timerSeconds - timeRemaining)
-  const nightFactor = Math.min(1.0, elapsed / 600)
-
-  const skyColor = nightFactor < 0.5 ? '#1e1b4b' : '#020617'
-  const horizonColor = nightFactor < 0.5 ? '#ea580c' : '#0f172a'
+  // Always day-time sky — no progressive darkening
+  const skyColor = '#1e1b4b'
+  const horizonColor = '#ea580c'
 
   return (
     <>
@@ -628,49 +624,14 @@ function SkyAtmosphere() {
 }
 
 /* ── Stars System ── */
+// Stars hidden in day mode
 function Stars() {
-  const timeRemaining = useGameStore((s) => s.timeRemaining)
-  const timerSeconds = useGameStore((s) => s.timerSeconds)
-  const elapsed = Math.max(0, timerSeconds - timeRemaining)
-  const nightFactor = Math.min(1.0, elapsed / 600)
-
-  const starsCount = 100
-  const positions = useMemo(() => {
-    const arr = []
-    for (let i = 0; i < starsCount; i++) {
-      const theta = Math.random() * Math.PI * 2
-      const phi = Math.acos(Math.random() * 2 - 1)
-      const r = 90
-      arr.push([
-        r * Math.sin(phi) * Math.cos(theta),
-        Math.abs(r * Math.sin(phi) * Math.sin(theta)) + 5,
-        r * Math.cos(phi)
-      ])
-    }
-    return arr
-  }, [])
-
-  if (nightFactor < 0.1) return null
-
-  return (
-    <group>
-      {positions.map((pos, i) => (
-        <mesh key={i} position={pos}>
-          <boxGeometry args={[0.2, 0.2, 0.2]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={nightFactor * 0.8} />
-        </mesh>
-      ))}
-    </group>
-  )
+  return null
 }
 
 /* ── Main map exporter ── */
 export default function CampusMap() {
-  const timeRemaining = useGameStore((s) => s.timeRemaining)
-  const timerSeconds = useGameStore((s) => s.timerSeconds)
-  const elapsed = Math.max(0, timerSeconds - timeRemaining)
-  const nightFactor = Math.min(1.0, elapsed / 600)
-
+  // No day-night cycle — always full day lighting
   const setClickTarget = useGameStore((s) => s.setClickTarget)
 
   // Ground click catcher
@@ -681,15 +642,11 @@ export default function CampusMap() {
     }
   }
 
-  const dayAmbient = useMemo(() => new THREE.Color('#ffedd5'), [])
-  const nightAmbient = useMemo(() => new THREE.Color('#384260'), [])
-  const ambientColor = useMemo(() => dayAmbient.clone().lerp(nightAmbient, nightFactor).getStyle(), [nightFactor, dayAmbient, nightAmbient])
-  const ambientIntensity = THREE.MathUtils.lerp(0.55, 0.45, nightFactor)
-
-  const dayMainColor = useMemo(() => new THREE.Color('#f97316'), [])
-  const nightMainColor = useMemo(() => new THREE.Color('#a5f3fc'), [])
-  const mainLightColor = useMemo(() => dayMainColor.clone().lerp(nightMainColor, nightFactor).getStyle(), [nightFactor, dayMainColor, nightMainColor])
-  const mainLightIntensity = THREE.MathUtils.lerp(1.25, 0.85, nightFactor)
+  // Static day-mode lighting — full brightness throughout game
+  const ambientColor = '#ffedd5'
+  const ambientIntensity = 0.60
+  const mainLightColor = '#f97316'
+  const mainLightIntensity = 1.3
 
 
 
@@ -712,7 +669,7 @@ export default function CampusMap() {
         shadow-camera-bottom={-60}
         shadow-bias={-0.0006}
       />
-      <directionalLight position={[-25, 35, -20]} intensity={0.25 * (1.0 - nightFactor)} color="#bae6fd" />
+      <directionalLight position={[-25, 35, -20]} intensity={0.28} color="#bae6fd" />
 
       {/* Main Ground */}
       <Ground onGroundClick={handleGroundClick} />

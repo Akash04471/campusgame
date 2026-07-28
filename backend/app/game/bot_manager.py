@@ -211,9 +211,10 @@ class BotManager:
         bot_id_str = str(bot_id)
 
         try:
-            # 60-second phase duration window: 30% = 18s, 90% = 54s
-            delay = random.uniform(18.0, 52.0)
+            # 20-second phase duration window: submit between 2.0s and 8.0s
+            delay = random.uniform(2.0, 8.0)
             await asyncio.sleep(delay)
+
 
             if not gs.is_active:
                 return

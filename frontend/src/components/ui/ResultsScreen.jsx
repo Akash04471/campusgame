@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, Suspense } from 'react'
+import { Canvas, useFrame } from '@react-three/fiber'
 import useGameStore from '../../store/gameStore'
 import MuteToggleButton from './MuteToggleButton'
+import { StudentBody } from '../game/Player'
 
 const ROLE_ICONS = {
   DETECTIVE: '🔍',
@@ -66,6 +68,98 @@ function ConfettiCanvas({ winner }) {
 
   return <canvas ref={canvasRef} className="confetti-canvas" />
 }
+
+/* ── Spinning 3D Character for reveal ── */
+function SpinningCharacter({ role }) {
+  const groupRef = useRef()
+  useFrame((_, delta) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.y += delta * 0.6
+    }
+  })
+  return (
+    <group ref={groupRef} position={[0, -0.8, 0]} scale={[1.1, 1.1, 1.1]}>
+      <StudentBody role={role} isWalking={false} isRunning={false} />
+    </group>
+  )
+}
+
+/* ── Mini 3D Canvas Character Reveal Card ── */
+function CharacterRevealCard({ role, name, label, accentColor, badgeText, badgeSuccess }) {
+  return (
+    <div style={{
+      background: 'linear-gradient(160deg, #0f172a 0%, #1e1b4b 100%)',
+      borderRadius: '16px',
+      border: `2px solid ${accentColor}`,
+      boxShadow: `0 0 28px ${accentColor}55, 0 4px 20px rgba(0,0,0,0.5)`,
+      overflow: 'hidden',
+      animation: 'flipIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+      position: 'relative',
+    }}>
+      {/* Role label */}
+      <div style={{
+        padding: '10px 16px 0',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+      }}>
+        <span style={{
+          fontSize: '0.75rem', fontWeight: 'bold',
+          fontFamily: 'Orbitron, sans-serif', color: accentColor,
+          letterSpacing: '1px',
+        }}>{label}</span>
+        <span style={{
+          fontSize: '0.7rem', padding: '3px 10px', borderRadius: '12px',
+          background: badgeSuccess ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)',
+          color: badgeSuccess ? '#f87171' : '#34d399',
+          border: `1px solid ${badgeSuccess ? 'rgba(239,68,68,0.4)' : 'rgba(16,185,129,0.4)'}`,
+          fontWeight: 'bold',
+        }}>{badgeText}</span>
+      </div>
+
+      {/* 3D Character Canvas */}
+      <div style={{ height: '200px', position: 'relative' }}>
+        {/* Spotlight glow */}
+        <div style={{
+          position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)',
+          width: '100px', height: '60px',
+          background: `radial-gradient(ellipse at center, ${accentColor}44 0%, transparent 70%)`,
+          borderRadius: '50%', zIndex: 0,
+        }} />
+        <Canvas
+          camera={{ position: [0, 1.2, 3.5], fov: 45 }}
+          gl={{ antialias: true, alpha: true }}
+          style={{ background: 'transparent' }}
+        >
+          <ambientLight intensity={0.6} color="#e0e7ff" />
+          <directionalLight position={[2, 4, 2]} intensity={1.4} color={accentColor} />
+          <directionalLight position={[-2, 2, -1]} intensity={0.5} color="#bae6fd" />
+          <pointLight position={[0, 3, 1]} intensity={2} distance={8} color={accentColor} />
+          <Suspense fallback={null}>
+            <SpinningCharacter role={role} />
+          </Suspense>
+        </Canvas>
+      </div>
+
+      {/* Identity text */}
+      <div style={{
+        padding: '12px 16px 16px',
+        textAlign: 'center',
+        borderTop: `1px solid ${accentColor}33`,
+        background: `linear-gradient(180deg, transparent, ${accentColor}11)`,
+      }}>
+        <p style={{
+          margin: 0, fontSize: '1.3rem', fontWeight: 'bold',
+          color: '#f3f4f6', fontFamily: 'Orbitron, sans-serif',
+          textShadow: `0 0 12px ${accentColor}`,
+        }}>{name}</p>
+        <p style={{
+          margin: '4px 0 0', fontSize: '0.75rem',
+          color: accentColor, fontFamily: 'monospace', letterSpacing: '2px',
+        }}>IDENTITY REVEALED</p>
+      </div>
+    </div>
+  )
+}
+
 
 export default function GameResultsScreen() {
   const gameResult = useGameStore((s) => s.gameResult)
@@ -198,81 +292,35 @@ export default function GameResultsScreen() {
           </div>
         </div>
 
-        {/* ── B. REVEAL SECTION (CONSPIRATOR + MASTERMIND CARDS) ── */}
+        {/* ── B. 3D CHARACTER REVEAL (CONSPIRATOR + MASTERMIND) ── */}
         <div style={{
           margin: '20px 0',
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '14px'
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: '16px'
         }}>
-          {/* Conspirator Reveal Card */}
+          {/* Conspirator 3D Reveal Card */}
           {revealStep >= 1 && (
-            <div style={{
-              background: '#111827',
-              padding: '16px 20px',
-              borderRadius: '12px',
-              borderLeft: '5px solid #f97316',
-              boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
-              animation: 'flipIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.85rem', color: '#f97316', fontWeight: 'bold', fontFamily: 'Orbitron, sans-serif' }}>
-                  ACTUAL CONSPIRATOR
-                </span>
-                <span style={{
-                  fontSize: '0.75rem',
-                  padding: '3px 10px',
-                  borderRadius: '12px',
-                  background: isDetectiveCorrect ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)',
-                  color: isDetectiveCorrect ? '#f87171' : '#34d399',
-                  fontWeight: 'bold',
-                  border: isDetectiveCorrect ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(16, 185, 129, 0.4)'
-                }}>
-                  {isDetectiveCorrect ? 'EXPOSED 🚨' : 'EVADED 🏃'}
-                </span>
-              </div>
-              <h3 style={{ margin: '8px 0 4px 0', fontSize: '1.25rem', color: '#f3f4f6' }}>
-                🔪 {conspiratorName}
-              </h3>
-              <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8' }}>
-                Detective Verdict: {isDetectiveCorrect ? '✓ Correctly Identified' : '✗ Evaded Detection'}
-              </p>
-            </div>
+            <CharacterRevealCard
+              role="CONSPIRATOR"
+              name={conspiratorName}
+              label="ACTUAL CONSPIRATOR"
+              accentColor="#f97316"
+              badgeText={isDetectiveCorrect ? 'EXPOSED 🚨' : 'EVADED 🏃'}
+              badgeSuccess={isDetectiveCorrect}
+            />
           )}
 
-          {/* Mastermind Reveal Card */}
+          {/* Mastermind 3D Reveal Card */}
           {revealStep >= 2 && (
-            <div style={{
-              background: '#111827',
-              padding: '16px 20px',
-              borderRadius: '12px',
-              borderLeft: '5px solid #ef4444',
-              boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
-              animation: 'flipIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.85rem', color: '#ef4444', fontWeight: 'bold', fontFamily: 'Orbitron, sans-serif' }}>
-                  ACTUAL MASTERMIND
-                </span>
-                <span style={{
-                  fontSize: '0.75rem',
-                  padding: '3px 10px',
-                  borderRadius: '12px',
-                  background: isInvCorrect ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)',
-                  color: isInvCorrect ? '#f87171' : '#34d399',
-                  fontWeight: 'bold',
-                  border: isInvCorrect ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(16, 185, 129, 0.4)'
-                }}>
-                  {isInvCorrect ? 'EXPOSED 🚨' : 'EVADED 🏃'}
-                </span>
-              </div>
-              <h3 style={{ margin: '8px 0 4px 0', fontSize: '1.25rem', color: '#f3f4f6' }}>
-                🧠 {mastermindName}
-              </h3>
-              <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8' }}>
-                Investigators Vote: {isInvSuccess ? (isInvCorrect ? '✓ Majority Correct' : '✗ Majority Wrong') : '⚠️ No Majority Reached'}
-              </p>
-            </div>
+            <CharacterRevealCard
+              role="MASTERMIND"
+              name={mastermindName}
+              label="ACTUAL MASTERMIND"
+              accentColor="#ef4444"
+              badgeText={isInvCorrect ? 'EXPOSED 🚨' : 'EVADED 🏃'}
+              badgeSuccess={isInvCorrect}
+            />
           )}
         </div>
 
