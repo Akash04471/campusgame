@@ -382,8 +382,9 @@ async def run_authoritative_game_loop(room_code: str):
                                 }
                             })
                         except Exception as bot_error:
-                            logger.error(f"[Bot] Error ticking bot {bot.player_id}: {bot_error}", exc_info=True)
+                            logger.error(f"[Bot] Error ticking bot {bot.player_id} in room {room_code}: {bot_error}", exc_info=True)
                             continue
+
 
                 # 6.6 Autonomous Bot Chat Tick
                 bot_players_list = [{'id': p.player_id, 'name': p.username} for p in room.players.values() if p.player_id >= 9000]

@@ -682,14 +682,15 @@ export default function CampusMap() {
   }
 
   const dayAmbient = useMemo(() => new THREE.Color('#ffedd5'), [])
-  const nightAmbient = useMemo(() => new THREE.Color('#1e293b'), [])
+  const nightAmbient = useMemo(() => new THREE.Color('#384260'), [])
   const ambientColor = useMemo(() => dayAmbient.clone().lerp(nightAmbient, nightFactor).getStyle(), [nightFactor, dayAmbient, nightAmbient])
-  const ambientIntensity = THREE.MathUtils.lerp(0.45, 0.28, nightFactor)
+  const ambientIntensity = THREE.MathUtils.lerp(0.55, 0.45, nightFactor)
 
   const dayMainColor = useMemo(() => new THREE.Color('#f97316'), [])
-  const nightMainColor = useMemo(() => new THREE.Color('#93c5fd'), [])
+  const nightMainColor = useMemo(() => new THREE.Color('#a5f3fc'), [])
   const mainLightColor = useMemo(() => dayMainColor.clone().lerp(nightMainColor, nightFactor).getStyle(), [nightFactor, dayMainColor, nightMainColor])
-  const mainLightIntensity = THREE.MathUtils.lerp(1.25, 0.55, nightFactor)
+  const mainLightIntensity = THREE.MathUtils.lerp(1.25, 0.85, nightFactor)
+
 
 
   return (
