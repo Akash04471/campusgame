@@ -222,24 +222,77 @@ async def run_authoritative_game_loop(room_code: str):
                     bot_st = gs.bot_states.setdefault(bot_id_str, {
                         'target_idx': _rnd.randint(0, len(BOT_WAYPOINTS) - 1),
                         'curr_pos': [0.0, 0.5, -35.0],
-                        'progress_timer': 0
+                        'task_arrival_hold': 0
                     })
-                    target_wp = BOT_WAYPOINTS[bot_st['target_idx']]
+
+                    # Determine bot's next task destination
+                    bot_tasks = task_manager.get_player_tasks(room_code, bot_id_str)
+                    pending_tasks = [t for t in bot_tasks if not t.get('completed')]
+
+                    active_task = None
+                    target_wp = None
+
+                    if pending_tasks:
+                        active_task = pending_tasks[0]
+                        target_area_name = active_task.get('area') or active_task.get('location')
+                        target_wp = next((w for w in BOT_WAYPOINTS if w['area'] == target_area_name), None)
+                        if not target_wp:
+                            logger.warning(f"[Bot] Task area '{target_area_name}' for bot {bot_id_str} not found in BOT_WAYPOINTS; falling back to wander.")
+
+                    # Fallback to idle wander if no pending tasks or unmapped location
+                    if not target_wp:
+                        target_wp = BOT_WAYPOINTS[bot_st.get('target_idx', 0) % len(BOT_WAYPOINTS)]
+
                     tx, ty, tz = target_wp['position']
                     cx, cy, cz = bot_st['curr_pos']
-
                     dx = tx - cx
                     dz = tz - cz
                     dist = (dx * dx + dz * dz) ** 0.5
 
                     if dist < 1.5:
-                        bot_st['target_idx'] = (bot_st['target_idx'] + 1) % len(BOT_WAYPOINTS)
+                        if active_task:
+                            # Bot has ARRIVED at the task location — only now progress task
+                            bot_st['task_arrival_hold'] = bot_st.get('task_arrival_hold', 0) + 1
+                            if bot_st['task_arrival_hold'] >= 3:
+                                bot_st['task_arrival_hold'] = 0
+                                updated = task_manager.update_task_progress(room_code, bot_id_str, active_task['task_id'], 0.35)
+                                if updated:
+                                    if updated.get('completed'):
+                                        logger.info(f"[Bot] Bot {bot_id_str} completed task '{updated['name']}' at {target_wp['area']}")
+                                        await broadcast_to_room(room_code, {
+                                            "type": "TASK_COMPLETED",
+                                            "payload": {"player_id": bot_id_str, "task": updated}
+                                        })
+                                    global_progress = task_manager.get_room_completion_percent(room_code)
+                                    await broadcast_to_room(room_code, {
+                                        "type": "GLOBAL_TASK_PROGRESS",
+                                        "payload": global_progress
+                                    })
+                                    if global_progress.get('percent', 0) >= 100:
+                                        if not meeting_manager.get_active_meeting(room_code):
+                                            mtg = meeting_manager.start_meeting(room_code, "TASKS_COMPLETED")
+                                            if mtg:
+                                                await broadcast_to_room(room_code, {
+                                                    "type": "MEETING_STARTED",
+                                                    "payload": {
+                                                        **mtg.to_dict(),
+                                                        "triggered_by": "TASKS_COMPLETED",
+                                                        "time_remaining": 120,
+                                                        "topic": "Discuss who the Conspirator and Mastermind are!"
+                                                    }
+                                                })
+                        else:
+                            # No pending tasks — idle wander waypoint cycling
+                            bot_st['target_idx'] = (bot_st.get('target_idx', 0) + 1) % len(BOT_WAYPOINTS)
+                            bot_st['task_arrival_hold'] = 0
                     else:
+                        # Walking toward target location
                         speed = 1.6
                         bot_st['curr_pos'][0] += (dx / dist) * speed
                         bot_st['curr_pos'][2] += (dz / dist) * speed
+                        bot_st['task_arrival_hold'] = 0
 
-                    rot = math.atan2(dx, dz)
+                    rot = math.atan2(dx, dz) if dist >= 0.001 else 0.0
                     if not hasattr(gs, 'player_positions'):
                         gs.player_positions = {}
                     gs.player_positions[bot_id_str] = {
@@ -249,7 +302,7 @@ async def run_authoritative_game_loop(room_code: str):
                         'durations': {}
                     }
 
-                    # Broadcast bot movement so client renders bot on 3D canvas and radar map
+                    # Broadcast bot movement so client renders bot walking the full path on 3D canvas & radar map
                     await broadcast_to_room(room_code, {
                         "type": "PLAYER_MOVED",
                         "payload": {
@@ -260,38 +313,6 @@ async def run_authoritative_game_loop(room_code: str):
                         }
                     })
 
-                    # Bot task progression (every 3s)
-                    bot_st['progress_timer'] += 1
-                    if bot_st['progress_timer'] >= 3:
-                        bot_st['progress_timer'] = 0
-                        bot_tasks = task_manager.get_player_tasks(room_code, bot_id_str)
-                        active_task = next((t for t in bot_tasks if not t.get('completed')), None)
-                        if active_task:
-                            updated = task_manager.update_task_progress(room_code, bot_id_str, active_task['task_id'], 0.15)
-                            if updated:
-                                if updated.get('completed'):
-                                    await broadcast_to_room(room_code, {
-                                        "type": "TASK_COMPLETED",
-                                        "payload": {"player_id": bot_id_str, "task": updated}
-                                    })
-                                global_progress = task_manager.get_room_completion_percent(room_code)
-                                await broadcast_to_room(room_code, {
-                                    "type": "GLOBAL_TASK_PROGRESS",
-                                    "payload": global_progress
-                                })
-                                if global_progress.get('percent', 0) >= 100:
-                                    if not meeting_manager.get_active_meeting(room_code):
-                                        mtg = meeting_manager.start_meeting(room_code, "TASKS_COMPLETED")
-                                        if mtg:
-                                            await broadcast_to_room(room_code, {
-                                                "type": "MEETING_STARTED",
-                                                "payload": {
-                                                    **mtg.to_dict(),
-                                                    "triggered_by": "TASKS_COMPLETED",
-                                                    "time_remaining": 120,
-                                                    "topic": "Discuss who the Conspirator and Mastermind are!"
-                                                }
-                                            })
 
             # 6.6 Autonomous Bot Chat Tick
             bot_players_list = [{'id': p.player_id, 'name': p.username} for p in room.players.values() if p.player_id >= 9000]
@@ -316,12 +337,13 @@ async def run_authoritative_game_loop(room_code: str):
 
             # 7. Check game over due to time expiration
             if elapsed >= timer_limit:
-                gs.is_active = False
+                bot_manager.on_phase_change(room_code, 'decision', gs, room, broadcast_to_room, send_to_player)
                 await broadcast_to_room(room_code, {
                     "type": "ACCUSATION_PHASE",
                     "payload": {"reason": "TIME_EXPIRED", "elapsed": elapsed}
                 })
                 break
+
 
             await asyncio.sleep(1.0)
     except asyncio.CancelledError:

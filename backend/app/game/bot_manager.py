@@ -76,20 +76,8 @@ class BotManager:
 
         tasks = []
 
-        if phase == 'exploration':
-            for bot_id in bot_ids:
-                tasks.append(asyncio.create_task(
-                    self._bot_exploration_loop(room_code, bot_id, gs, room, broadcast_func)
-                ))
-                tasks.append(asyncio.create_task(
-                    self._bot_chat_loop(room_code, bot_id, 'public', gs, room, broadcast_func)
-                ))
-        elif phase == 'meeting':
-            for bot_id in bot_ids:
-                tasks.append(asyncio.create_task(
-                    self._bot_chat_loop(room_code, bot_id, 'meeting', gs, room, broadcast_func)
-                ))
-        elif phase in ('decision', 'accusation'):
+        if phase in ('decision', 'accusation'):
+            print(f"[BotManager] Scheduling decision phase bots for room {room_code}")
             for bot_id in bot_ids:
                 bot_role = (gs.assignments.get(str(bot_id)) or '').upper()
                 if bot_role in ('DETECTIVE', 'INVESTIGATOR'):
@@ -98,6 +86,7 @@ class BotManager:
                     ))
 
         self.active_tasks[room_code] = tasks
+
 
     async def _bot_exploration_loop(self, room_code: str, bot_id: int, gs, room, broadcast_func):
         """Movement and task execution loop for a bot player."""

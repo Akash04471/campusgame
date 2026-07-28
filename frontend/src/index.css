@@ -4711,8 +4711,20 @@ p.subtitle {
 }
 .cu-nav-cta:hover { background: #dc2626; border-color: #dc2626; color: #fff; box-shadow: 0 0 20px rgba(220,38,38,0.4); }
 
+/* ── Reveal Animations for Final Results Screen ── */
+@keyframes flipIn {
+  0% { opacity: 0; transform: perspective(400px) rotateX(-90deg) scale(0.9); }
+  100% { opacity: 1; transform: perspective(400px) rotateX(0deg) scale(1); }
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
 /* ── Sections ────────────────────────────────── */
 .cu-section {
+
   position: relative; width: 100%;
   min-height: 100vh;
   display: flex; flex-direction: column; justify-content: center;

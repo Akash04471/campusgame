@@ -3,6 +3,8 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { Stars } from '@react-three/drei'
 import * as THREE from 'three'
 import useGameStore from '../../store/gameStore'
+import audioManager from '../../utils/audioManager'
+
 
 /* ─────────────────────────────────────────────
    ROLE CONFIGS & MISSION QUOTES
@@ -385,11 +387,15 @@ export default function RoleRevealScreen({ onBegin }) {
 
         {/* Step 6: Begin action */}
         <div className={`cu-rr-actions ${animStage >= 6 ? 'cu-rr-visible' : ''}`}>
-          <button className="cu-rr-btn" onClick={onBegin}>
+          <button className="cu-rr-btn" onClick={() => {
+            audioManager.unlockAudio()
+            if (onBegin) onBegin()
+          }}>
             <span className="cu-rr-btn-glow" />
             <span className="cu-rr-btn-inner">BEGIN OPERATION</span>
           </button>
         </div>
+
 
       </div>
     </div>

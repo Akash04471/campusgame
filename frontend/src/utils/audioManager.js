@@ -17,6 +17,28 @@ class AudioManager {
     
     // Web Audio API context for synthetic fallbacks
     this.audioCtx = null
+    this.attachUnlockListener()
+  }
+
+  attachUnlockListener() {
+    if (typeof window !== 'undefined') {
+      const unlock = () => {
+        this.unlockAudio()
+        window.removeEventListener('click', unlock)
+        window.removeEventListener('keydown', unlock)
+        window.removeEventListener('pointerdown', unlock)
+      }
+      window.addEventListener('click', unlock, { once: true })
+      window.addEventListener('keydown', unlock, { once: true })
+      window.addEventListener('pointerdown', unlock, { once: true })
+    }
+  }
+
+  unlockAudio() {
+    const ctx = this.getAudioContext()
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume().catch(() => {})
+    }
   }
 
   getAudioContext() {
@@ -31,6 +53,7 @@ class AudioManager {
     }
     return this.audioCtx
   }
+
 
   toggleMute() {
     this.isMuted = !this.isMuted

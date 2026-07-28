@@ -62,6 +62,13 @@ export default function DecisionPhaseScreen() {
       ? Boolean(decisionPhase.submitted.investigators?.[pidStr])
       : false
 
+  // Send START_DECISION_PHASE to backend to trigger bot decision scheduling
+  useEffect(() => {
+    if ((gamePhase === 'decision' || gamePhase === 'accusation') && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ action: "START_DECISION_PHASE" }))
+    }
+  }, [gamePhase, ws])
+
   // Fallback timer tick
   useEffect(() => {
     if (gamePhase !== 'decision' && gamePhase !== 'accusation') return
@@ -70,6 +77,7 @@ export default function DecisionPhaseScreen() {
     }, 1000)
     return () => clearInterval(interval)
   }, [gamePhase])
+
 
   if (gamePhase !== 'decision' && gamePhase !== 'accusation') return null
 

@@ -158,13 +158,40 @@ def resolve_game(
     except Exception:
         pass  # Don't fail game resolution if DB write fails
 
+    detective_id = next(
+        (pid for pid, r in assignments.items() if r == 'DETECTIVE'), None
+    )
+    detective_guess = accusation.get('conspirator_accusation') if accusation else None
+    winning_roles = ['DETECTIVE', 'INVESTIGATOR'] if winner_faction == 'INVESTIGATORS' else ['MASTERMIND', 'CONSPIRATOR']
+
     return {
         'winner_faction': winner_faction,
         'correct_accusation': correct_accusation,
+        'winningRoles': winning_roles,
         'mastermind_id': mastermind_id,
         'conspirator_id': conspirator_id,
-        'actualMastermind': mastermind_id,
-        'actualConspirator': conspirator_id,
+        'actualConspirator': {
+            'id': conspirator_id,
+            'name': player_names.get(conspirator_id, conspirator_id) if conspirator_id else 'None'
+        },
+        'actualMastermind': {
+            'id': mastermind_id,
+            'name': player_names.get(mastermind_id, mastermind_id) if mastermind_id else 'None'
+        },
+        'detective': {
+            'playerId': detective_id,
+            'guess': detective_guess,
+            'guessName': player_names.get(detective_guess, detective_guess) if detective_guess else None,
+            'correct': detective_correct,
+        },
+        'investigators': {
+            'success': investigator_vote_result['success'],
+            'finalGuess': investigator_vote_result['final_guess'],
+            'finalGuessName': player_names.get(investigator_vote_result['final_guess']) if investigator_vote_result['final_guess'] else None,
+            'voteCounts': investigator_vote_result['vote_counts'],
+            'correct': investigator_vote_result['investigators_correct'],
+            'failMessage': investigator_vote_result.get('fail_message')
+        },
         'detectiveCorrect': detective_correct,
         'investigatorVoteResult': investigator_vote_result,
         'failMessage': investigator_vote_result.get('fail_message'),
@@ -172,4 +199,5 @@ def resolve_game(
         'all_roles': assignments,
         'player_names': player_names,
     }
+
 

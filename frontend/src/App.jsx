@@ -263,7 +263,11 @@ function useGameWebSocket(roomCode, playerId) {
           case 'PLAYER_MOVED': if (String(payload.player_id) !== String(playerId)) updateOtherPlayer(payload.player_id, { position: payload.position, rotation: payload.rotation }); break
           case 'PLAYER_DISCONNECTED': removeOtherPlayer(payload.player_id); break
 
-          case 'GAME_OVER': setGameResult(payload); break
+          case 'GAME_OVER':
+            setGameResult(payload)
+            setGamePhase('results')
+            break
+
 
           default: break
         }

@@ -213,6 +213,7 @@ class PlayerTask:
             'task_type': self.task_type,
             'name': self.name,
             'location': self.location,
+            'area': self.location,
             'duration_seconds': self.duration_seconds,
             'points': self.points,
             'role_restricted': self.role_restricted,
@@ -220,6 +221,7 @@ class PlayerTask:
             'progress': round(self.progress, 3),
             'completed': self.completed,
         }
+
 
 
 class TaskManager:
