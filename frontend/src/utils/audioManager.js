@@ -154,8 +154,16 @@ class AudioManager {
     }
   }
 
+  playFootstep() {
+    if (this.isMuted) return
+    const now = Date.now()
+    if (this._lastFootstep && now - this._lastFootstep < 350) return
+    this._lastFootstep = now
+    this.playSfx('footstep')
+  }
+
   /**
-   * Play SFX by type: 'select', 'submit', 'reveal'
+   * Play SFX by type: 'select', 'submit', 'reveal', 'footstep', 'taskStart', 'taskProgress', 'taskComplete'
    */
   playSfx(type) {
     if (this.isMuted) return
@@ -164,12 +172,16 @@ class AudioManager {
       select: '/sounds/select-click.mp3',
       submit: '/sounds/submit-lock.mp3',
       reveal: '/sounds/reveal-sting.mp3',
+      footstep: '/sounds/footstep.mp3',
+      taskStart: '/sounds/task-start.mp3',
+      taskProgress: '/sounds/task-progress-tick.mp3',
+      taskComplete: '/sounds/task-complete.mp3',
     }
 
     const path = soundPaths[type]
     if (path) {
       const sfx = new Audio(path)
-      sfx.volume = this.sfxVolume
+      sfx.volume = type === 'footstep' ? this.sfxVolume * 0.4 : this.sfxVolume
       sfx.play().catch(() => {
         // Fallback to Web Audio synthesized SFX
         this.playProceduralSfx(type)
@@ -248,7 +260,6 @@ class AudioManager {
     try {
       const now = ctx.currentTime
       if (type === 'select') {
-        // High crisp tech tick
         const osc = ctx.createOscillator()
         const gain = ctx.createGain()
         osc.type = 'sine'
@@ -263,7 +274,6 @@ class AudioManager {
         osc.start(now)
         osc.stop(now + 0.04)
       } else if (type === 'submit') {
-        // Locking heavy synth pulse
         const osc = ctx.createOscillator()
         const gain = ctx.createGain()
         osc.type = 'triangle'
@@ -278,7 +288,6 @@ class AudioManager {
         osc.start(now)
         osc.stop(now + 0.25)
       } else if (type === 'reveal') {
-        // Dramatic reveal brass sting synth
         const osc1 = ctx.createOscillator()
         const osc2 = ctx.createOscillator()
         const gain = ctx.createGain()
@@ -286,11 +295,11 @@ class AudioManager {
         osc1.type = 'sawtooth'
         osc2.type = 'square'
 
-        osc1.frequency.setValueAtTime(110, now) // Low A2
-        osc1.frequency.exponentialRampToValueAtTime(220, now + 0.6) // Rise to A3
+        osc1.frequency.setValueAtTime(110, now)
+        osc1.frequency.exponentialRampToValueAtTime(220, now + 0.6)
 
-        osc2.frequency.setValueAtTime(164.81, now) // E3
-        osc2.frequency.exponentialRampToValueAtTime(329.63, now + 0.6) // Rise to E4
+        osc2.frequency.setValueAtTime(164.81, now)
+        osc2.frequency.exponentialRampToValueAtTime(329.63, now + 0.6)
 
         gain.gain.setValueAtTime(0.5, now)
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9)
@@ -303,6 +312,70 @@ class AudioManager {
         osc2.start(now)
         osc1.stop(now + 0.9)
         osc2.stop(now + 0.9)
+      } else if (type === 'footstep') {
+        // Short low thud
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = 'triangle'
+        osc.frequency.setValueAtTime(120, now)
+        osc.frequency.exponentialRampToValueAtTime(35, now + 0.07)
+
+        gain.gain.setValueAtTime(0.12, now)
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07)
+
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.start(now)
+        osc.stop(now + 0.07)
+      } else if (type === 'taskStart') {
+        // Soft dual chime
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = 'sine'
+        osc.frequency.setValueAtTime(523.25, now) // C5
+        osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.18) // E5
+
+        gain.gain.setValueAtTime(0.25, now)
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22)
+
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.start(now)
+        osc.stop(now + 0.22)
+      } else if (type === 'taskProgress') {
+        // Short tick
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = 'sine'
+        osc.frequency.setValueAtTime(880, now)
+        osc.frequency.exponentialRampToValueAtTime(440, now + 0.03)
+
+        gain.gain.setValueAtTime(0.15, now)
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03)
+
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.start(now)
+        osc.stop(now + 0.03)
+      } else if (type === 'taskComplete') {
+        // Rising success chime (C5 -> E5 -> G5)
+        const notes = [523.25, 659.25, 783.99]
+        notes.forEach((freq, idx) => {
+          const osc = ctx.createOscillator()
+          const gain = ctx.createGain()
+          const startTime = now + (idx * 0.09)
+
+          osc.type = 'sine'
+          osc.frequency.setValueAtTime(freq, startTime)
+
+          gain.gain.setValueAtTime(0.3, startTime)
+          gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.25)
+
+          osc.connect(gain)
+          gain.connect(ctx.destination)
+          osc.start(startTime)
+          osc.stop(startTime + 0.25)
+        })
       }
     } catch (e) {
       // AudioContext unavailable
@@ -312,3 +385,4 @@ class AudioManager {
 
 const audioManager = new AudioManager()
 export default audioManager
+

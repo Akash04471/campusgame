@@ -4,6 +4,8 @@ import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import useGameStore from '../../store/gameStore'
 import { generateGrid, findPath } from '../../utils/pathfinder'
+import audioManager from '../../utils/audioManager'
+
 
 /* ──────────────────────────────────────────────────────────────
    HUMAN STUDENT CHARACTER
@@ -471,6 +473,8 @@ export default function Player() {
 
   const initialPosition = useGameStore((s) => s.playerPosition) // [0, 0.5, -35]
   const prevPos = useRef(new THREE.Vector3(initialPosition[0], 0, initialPosition[2]))
+  const lastFootstepPos = useRef([initialPosition[0], 0, initialPosition[2]])
+
 
   const pathWaypoints = useRef([])
   const currentWaypointIndex = useRef(0)
@@ -694,9 +698,22 @@ export default function Player() {
       }
     }
 
+    // Footstep audio trigger for local player
+    if (moving && groupRef.current) {
+      const curP = groupRef.current.position
+      const dxF = curP.x - lastFootstepPos.current[0]
+      const dzF = curP.z - lastFootstepPos.current[2]
+      const distMoved = Math.sqrt(dxF * dxF + dzF * dzF)
+      if (distMoved > 1.2) {
+        audioManager.playFootstep()
+        lastFootstepPos.current = [curP.x, curP.y, curP.z]
+      }
+    }
+
     groupRef.current.rotation.y = THREE.MathUtils.lerp(
       groupRef.current.rotation.y, rotationRef.current, 0.12
     )
+
 
     // Camera follow and target tracking
     const currentPos = groupRef.current.position

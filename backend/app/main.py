@@ -193,7 +193,6 @@ async def force_resolve_decision_phase(room_code: str, gs, room, broadcast_func)
 
 
 async def run_authoritative_game_loop(room_code: str):
-
     logger.info(f"[Game Loop] Starting authoritative loop for room {room_code}")
     try:
         while True:
@@ -203,220 +202,237 @@ async def run_authoritative_game_loop(room_code: str):
                 logger.info(f"[Game Loop] Terminating for room {room_code}. Status: {room.status if room else 'None'}")
                 break
 
-            # 1. Authoritative Elapsed time check
-            elapsed = int(_time.time() - gs.started_at)
-            timer_limit = gs.modifiers.get('timer_seconds', 600)
-            time_remaining = max(0, timer_limit - elapsed)
+            try:
+                # 1. Authoritative Elapsed time check
+                elapsed = int(_time.time() - gs.started_at)
+                timer_limit = gs.modifiers.get('timer_seconds', 600)
+                time_remaining = max(0, timer_limit - elapsed)
 
-            # Broadcast timer update
-            await broadcast_to_room(room_code, {
-                "type": "MATCH_TIMER_UPDATE",
-                "payload": {
-                    "time_remaining": time_remaining,
-                    "elapsed": elapsed
-                }
-            })
+                # Periodic health logging every 30 seconds
+                if elapsed > 0 and elapsed % 30 == 0:
+                    bot_count = len([p for p in room.players.values() if p.player_id >= 9000])
+                    logger.info(f"[Game Loop] Room {room_code} tick {elapsed}s — {bot_count} bots active")
 
-            # 2. Check active meeting
-            mtg = meeting_manager.get_active_meeting(room_code)
-            if mtg:
-                mtg_elapsed = int(_time.time() - mtg.started_at)
-                mtg_remaining = max(0, MEETING_DURATION - mtg_elapsed)
-                
-                # Broadcast meeting timer update
+                # Broadcast timer update
                 await broadcast_to_room(room_code, {
-                    "type": "MEETING_TIMER_UPDATE",
+                    "type": "MATCH_TIMER_UPDATE",
                     "payload": {
-                        "time_remaining": mtg_remaining
+                        "time_remaining": time_remaining,
+                        "elapsed": elapsed
                     }
                 })
 
-                if mtg_remaining <= 0 and mtg.is_active:
-                    # Auto end meeting when expired
-                    meeting_manager.end_meeting(room_code)
+                # 2. Check active meeting
+                mtg = meeting_manager.get_active_meeting(room_code)
+                if mtg:
+                    mtg_elapsed = int(_time.time() - mtg.started_at)
+                    mtg_remaining = max(0, MEETING_DURATION - mtg_elapsed)
+                    
+                    # Broadcast meeting timer update
                     await broadcast_to_room(room_code, {
-                        "type": "MEETING_ENDED",
-                        "payload": {"resumed": True}
-                    })
-
-            # 3. Check midpoint meeting (runs at 10 minutes / 600s elapsed)
-            if meeting_manager.check_midpoint(room_code, elapsed):
-                new_mtg = meeting_manager.start_meeting(room_code, "SYSTEM")
-                if new_mtg:
-                    await broadcast_to_room(room_code, {
-                        "type": "MEETING_STARTED",
-                        "payload": {**new_mtg.to_dict(), "triggered_by": "MIDPOINT"}
-                    })
-
-            # 4. Tick NPCs
-            npc_manager.tick_npc_movements(room_code, dt=1.0)
-            await broadcast_to_room(room_code, {
-                "type": "NPC_POSITIONS",
-                "payload": {
-                    "npcs": npc_manager.get_room_npcs(room_code)
-                }
-            })
-
-            # 5. Update player area durations (for Research Center presence check)
-            if hasattr(gs, 'player_positions'):
-                for p_pid, pstate in gs.player_positions.items():
-                    c_area = pstate.get('area', 'Unknown')
-                    dur_dict = pstate.setdefault('durations', {})
-                    dur_dict[c_area] = dur_dict.get(c_area, 0) + 1
-
-            # 6. Check observations every 10 seconds
-            if hasattr(gs, 'player_positions'):
-                npc_manager.obs_tick_counters[room_code] = npc_manager.obs_tick_counters.get(room_code, 0) + 1
-                if npc_manager.obs_tick_counters[room_code] >= 10:
-                    npc_manager.obs_tick_counters[room_code] = 0
-                    npc_manager.run_observation_check(room_code, gs.player_positions, elapsed)
-
-            # 6.5. Tick Bot Players (if present)
-            bot_players = [p for p in room.players.values() if p.player_id >= 9000]
-            if bot_players:
-                if not hasattr(gs, 'bot_states'):
-                    gs.bot_states = {}
-                for bot in bot_players:
-                    bot_id_str = str(bot.player_id)
-                    bot_st = gs.bot_states.setdefault(bot_id_str, {
-                        'target_idx': _rnd.randint(0, len(BOT_WAYPOINTS) - 1),
-                        'curr_pos': [0.0, 0.5, -35.0],
-                        'task_arrival_hold': 0
-                    })
-
-                    # Determine bot's next task destination
-                    bot_tasks = task_manager.get_player_tasks(room_code, bot_id_str)
-                    pending_tasks = [t for t in bot_tasks if not t.get('completed')]
-
-                    active_task = None
-                    target_wp = None
-
-                    if pending_tasks:
-                        active_task = pending_tasks[0]
-                        target_area_name = active_task.get('area') or active_task.get('location')
-                        target_wp = next((w for w in BOT_WAYPOINTS if w['area'] == target_area_name), None)
-                        if not target_wp:
-                            logger.warning(f"[Bot] Task area '{target_area_name}' for bot {bot_id_str} not found in BOT_WAYPOINTS; falling back to wander.")
-
-                    # Fallback to idle wander if no pending tasks or unmapped location
-                    if not target_wp:
-                        target_wp = BOT_WAYPOINTS[bot_st.get('target_idx', 0) % len(BOT_WAYPOINTS)]
-
-                    tx, ty, tz = target_wp['position']
-                    cx, cy, cz = bot_st['curr_pos']
-                    dx = tx - cx
-                    dz = tz - cz
-                    dist = (dx * dx + dz * dz) ** 0.5
-
-                    if dist < 1.5:
-                        if active_task:
-                            # Bot has ARRIVED at the task location — only now progress task
-                            bot_st['task_arrival_hold'] = bot_st.get('task_arrival_hold', 0) + 1
-                            if bot_st['task_arrival_hold'] >= 3:
-                                bot_st['task_arrival_hold'] = 0
-                                updated = task_manager.update_task_progress(room_code, bot_id_str, active_task['task_id'], 0.35)
-                                if updated:
-                                    if updated.get('completed'):
-                                        logger.info(f"[Bot] Bot {bot_id_str} completed task '{updated['name']}' at {target_wp['area']}")
-                                        await broadcast_to_room(room_code, {
-                                            "type": "TASK_COMPLETED",
-                                            "payload": {"player_id": bot_id_str, "task": updated}
-                                        })
-                                    global_progress = task_manager.get_room_completion_percent(room_code)
-                                    await broadcast_to_room(room_code, {
-                                        "type": "GLOBAL_TASK_PROGRESS",
-                                        "payload": global_progress
-                                    })
-                                    if global_progress.get('percent', 0) >= 100:
-                                        if not meeting_manager.get_active_meeting(room_code):
-                                            mtg = meeting_manager.start_meeting(room_code, "TASKS_COMPLETED")
-                                            if mtg:
-                                                await broadcast_to_room(room_code, {
-                                                    "type": "MEETING_STARTED",
-                                                    "payload": {
-                                                        **mtg.to_dict(),
-                                                        "triggered_by": "TASKS_COMPLETED",
-                                                        "time_remaining": 120,
-                                                        "topic": "Discuss who the Conspirator and Mastermind are!"
-                                                    }
-                                                })
-                        else:
-                            # No pending tasks — idle wander waypoint cycling
-                            bot_st['target_idx'] = (bot_st.get('target_idx', 0) + 1) % len(BOT_WAYPOINTS)
-                            bot_st['task_arrival_hold'] = 0
-                    else:
-                        # Walking toward target location
-                        speed = 1.6
-                        bot_st['curr_pos'][0] += (dx / dist) * speed
-                        bot_st['curr_pos'][2] += (dz / dist) * speed
-                        bot_st['task_arrival_hold'] = 0
-
-                    rot = math.atan2(dx, dz) if dist >= 0.001 else 0.0
-                    if not hasattr(gs, 'player_positions'):
-                        gs.player_positions = {}
-                    gs.player_positions[bot_id_str] = {
-                        'position': bot_st['curr_pos'],
-                        'rotation': rot,
-                        'area': target_wp['area'],
-                        'durations': {}
-                    }
-
-                    # Broadcast bot movement so client renders bot walking the full path on 3D canvas & radar map
-                    await broadcast_to_room(room_code, {
-                        "type": "PLAYER_MOVED",
+                        "type": "MEETING_TIMER_UPDATE",
                         "payload": {
-                            "player_id": bot_id_str,
-                            "position": bot_st['curr_pos'],
-                            "rotation": rot,
-                            "area": target_wp['area']
+                            "time_remaining": mtg_remaining
                         }
                     })
 
+                    if mtg_remaining <= 0 and mtg.is_active:
+                        # Auto end meeting when expired
+                        meeting_manager.end_meeting(room_code)
+                        await broadcast_to_room(room_code, {
+                            "type": "MEETING_ENDED",
+                            "payload": {"resumed": True}
+                        })
 
-            # 6.6 Autonomous Bot Chat Tick
-            bot_players_list = [{'id': p.player_id, 'name': p.username} for p in room.players.values() if p.player_id >= 9000]
-            if bot_players_list:
-                if not hasattr(gs, 'bot_chat_timer'):
-                    gs.bot_chat_timer = 0
-                gs.bot_chat_timer += 1
-                chat_interval = 18 if (mtg and mtg.is_active) else 35
-                if gs.bot_chat_timer >= chat_interval:
-                    gs.bot_chat_timer = 0
-                    channel = 'meeting' if (mtg and mtg.is_active) else 'public'
-                    bot_msg = bot_chat_service.get_autonomous_message(
-                        room_code, gs.assignments, bot_players_list, channel=channel
-                    )
-                    if bot_msg:
-                        if channel == 'villain':
-                            vids = [int(p) for p, r in gs.assignments.items() if r in ("MASTERMIND", "CONSPIRATOR")]
-                            for vid in vids:
-                                await send_to_player(room_code, vid, {"type": "CHAT_MESSAGE", "payload": bot_msg})
-                        else:
-                            await broadcast_to_room(room_code, {"type": "CHAT_MESSAGE", "payload": bot_msg})
+                # 3. Check midpoint meeting (runs at 10 minutes / 600s elapsed)
+                if meeting_manager.check_midpoint(room_code, elapsed):
+                    new_mtg = meeting_manager.start_meeting(room_code, "SYSTEM")
+                    if new_mtg:
+                        await broadcast_to_room(room_code, {
+                            "type": "MEETING_STARTED",
+                            "payload": {**new_mtg.to_dict(), "triggered_by": "MIDPOINT"}
+                        })
 
-            # 6.8 Decision Phase Countdown & Force Resolution Tick
-            if getattr(gs, 'decision_phase_active', False) and not getattr(gs, 'decision_resolved', False):
-                if hasattr(gs, 'decision_phase_deadline'):
-                    d_remaining = max(0, int(gs.decision_phase_deadline - _time.time()))
-                    await broadcast_to_room(room_code, {
-                        "type": "DECISION_TIMER_UPDATE",
-                        "payload": {"time_remaining": d_remaining}
-                    })
-                    if d_remaining <= 0:
-                        await force_resolve_decision_phase(room_code, gs, room, broadcast_to_room)
-
-            # 7. Check match exploration timer expiration -> trigger Decision Phase
-            if elapsed >= timer_limit and not getattr(gs, 'decision_phase_active', False) and not getattr(gs, 'decision_resolved', False):
-                gs.decision_phase_active = True
-                gs.decision_resolved = False
-                gs.decision_phase_deadline = _time.time() + 60.0
-                bot_manager.on_phase_change(room_code, 'decision', gs, room, broadcast_to_room, send_to_player)
+                # 4. Tick NPCs
+                npc_manager.tick_npc_movements(room_code, dt=1.0)
                 await broadcast_to_room(room_code, {
-                    "type": "DECISION_PHASE",
-                    "payload": {"status": "started", "reason": "TIME_EXPIRED", "time_remaining": 60}
+                    "type": "NPC_POSITIONS",
+                    "payload": {
+                        "npcs": npc_manager.get_room_npcs(room_code)
+                    }
                 })
 
+                # 5. Update player area durations (for Research Center presence check)
+                if hasattr(gs, 'player_positions'):
+                    for p_pid, pstate in gs.player_positions.items():
+                        c_area = pstate.get('area', 'Unknown')
+                        dur_dict = pstate.setdefault('durations', {})
+                        dur_dict[c_area] = dur_dict.get(c_area, 0) + 1
 
+                # 6. Check observations every 10 seconds
+                if hasattr(gs, 'player_positions'):
+                    npc_manager.obs_tick_counters[room_code] = npc_manager.obs_tick_counters.get(room_code, 0) + 1
+                    if npc_manager.obs_tick_counters[room_code] >= 10:
+                        npc_manager.obs_tick_counters[room_code] = 0
+                        npc_manager.run_observation_check(room_code, gs.player_positions, elapsed)
+
+                # 6.5. Tick Bot Players (if present)
+                bot_players = [p for p in room.players.values() if p.player_id >= 9000]
+                if bot_players:
+                    if not hasattr(gs, 'bot_states'):
+                        gs.bot_states = {}
+                    for bot in bot_players:
+                        try:
+                            bot_id_str = str(bot.player_id)
+                            initial_bot_pos = [0.0, 0.5, -35.0]
+                            if hasattr(gs, 'player_positions') and bot_id_str in gs.player_positions:
+                                initial_bot_pos = list(gs.player_positions[bot_id_str].get('position', [0.0, 0.5, -35.0]))
+
+                            bot_st = gs.bot_states.setdefault(bot_id_str, {
+                                'target_idx': _rnd.randint(0, len(BOT_WAYPOINTS) - 1),
+                                'curr_pos': initial_bot_pos,
+                                'task_arrival_hold': 0
+                            })
+
+                            # Determine bot's next task destination
+                            bot_tasks = task_manager.get_player_tasks(room_code, bot_id_str)
+                            pending_tasks = [t for t in bot_tasks if not t.get('completed')]
+
+                            active_task = None
+                            target_wp = None
+
+                            if pending_tasks:
+                                active_task = pending_tasks[0]
+                                target_area_name = active_task.get('area') or active_task.get('location')
+                                target_wp = next((w for w in BOT_WAYPOINTS if w['area'] == target_area_name), None)
+                                if not target_wp:
+                                    logger.warning(f"[Bot] Task area '{target_area_name}' for bot {bot_id_str} not found in BOT_WAYPOINTS; falling back to wander.")
+
+                            # Fallback to idle wander if no pending tasks or unmapped location
+                            if not target_wp:
+                                target_wp = BOT_WAYPOINTS[bot_st.get('target_idx', 0) % len(BOT_WAYPOINTS)]
+
+                            tx, ty, tz = target_wp['position']
+                            cx, cy, cz = bot_st['curr_pos']
+                            dx = tx - cx
+                            dz = tz - cz
+                            dist = (dx * dx + dz * dz) ** 0.5
+
+                            if dist < 1.5:
+                                if active_task:
+                                    # Bot has ARRIVED at the task location — only now progress task
+                                    bot_st['task_arrival_hold'] = bot_st.get('task_arrival_hold', 0) + 1
+                                    if bot_st['task_arrival_hold'] >= 3:
+                                        bot_st['task_arrival_hold'] = 0
+                                        updated = task_manager.update_task_progress(room_code, bot_id_str, active_task['task_id'], 0.35)
+                                        if updated:
+                                            if updated.get('completed'):
+                                                logger.info(f"[Bot] Bot {bot_id_str} completed task '{updated['name']}' at {target_wp['area']}")
+                                                await broadcast_to_room(room_code, {
+                                                    "type": "TASK_COMPLETED",
+                                                    "payload": {"player_id": bot_id_str, "task": updated}
+                                                })
+                                            global_progress = task_manager.get_room_completion_percent(room_code)
+                                            await broadcast_to_room(room_code, {
+                                                "type": "GLOBAL_TASK_PROGRESS",
+                                                "payload": global_progress
+                                            })
+                                            if global_progress.get('percent', 0) >= 100:
+                                                if not meeting_manager.get_active_meeting(room_code):
+                                                    mtg = meeting_manager.start_meeting(room_code, "TASKS_COMPLETED")
+                                                    if mtg:
+                                                        await broadcast_to_room(room_code, {
+                                                            "type": "MEETING_STARTED",
+                                                            "payload": {
+                                                                **mtg.to_dict(),
+                                                                "triggered_by": "TASKS_COMPLETED",
+                                                                "time_remaining": 120,
+                                                                "topic": "Discuss who the Conspirator and Mastermind are!"
+                                                            }
+                                                        })
+                                else:
+                                    # No pending tasks — idle wander waypoint cycling
+                                    bot_st['target_idx'] = (bot_st.get('target_idx', 0) + 1) % len(BOT_WAYPOINTS)
+                                    bot_st['task_arrival_hold'] = 0
+                            else:
+                                # Walking toward target location
+                                speed = 1.6
+                                bot_st['curr_pos'][0] += (dx / dist) * speed
+                                bot_st['curr_pos'][2] += (dz / dist) * speed
+                                bot_st['task_arrival_hold'] = 0
+
+                            rot = math.atan2(dx, dz) if dist >= 0.001 else 0.0
+                            if not hasattr(gs, 'player_positions'):
+                                gs.player_positions = {}
+                            gs.player_positions[bot_id_str] = {
+                                'position': bot_st['curr_pos'],
+                                'rotation': rot,
+                                'area': target_wp['area'],
+                                'durations': {}
+                            }
+
+                            # Broadcast bot movement so client renders bot walking the full path on 3D canvas & radar map
+                            await broadcast_to_room(room_code, {
+                                "type": "PLAYER_MOVED",
+                                "payload": {
+                                    "player_id": bot_id_str,
+                                    "position": bot_st['curr_pos'],
+                                    "rotation": rot,
+                                    "area": target_wp['area']
+                                }
+                            })
+                        except Exception as bot_error:
+                            logger.error(f"[Bot] Error ticking bot {bot.player_id}: {bot_error}", exc_info=True)
+                            continue
+
+                # 6.6 Autonomous Bot Chat Tick
+                bot_players_list = [{'id': p.player_id, 'name': p.username} for p in room.players.values() if p.player_id >= 9000]
+                if bot_players_list:
+                    if not hasattr(gs, 'bot_chat_timer'):
+                        gs.bot_chat_timer = 0
+                    gs.bot_chat_timer += 1
+                    chat_interval = 18 if (mtg and mtg.is_active) else 35
+                    if gs.bot_chat_timer >= chat_interval:
+                        gs.bot_chat_timer = 0
+                        channel = 'meeting' if (mtg and mtg.is_active) else 'public'
+                        bot_msg = bot_chat_service.get_autonomous_message(
+                            room_code, gs.assignments, bot_players_list, channel=channel
+                        )
+                        if bot_msg:
+                            if channel == 'villain':
+                                vids = [int(p) for p, r in gs.assignments.items() if r in ("MASTERMIND", "CONSPIRATOR")]
+                                for vid in vids:
+                                    await send_to_player(room_code, vid, {"type": "CHAT_MESSAGE", "payload": bot_msg})
+                            else:
+                                await broadcast_to_room(room_code, {"type": "CHAT_MESSAGE", "payload": bot_msg})
+
+                # 6.8 Decision Phase Countdown & Force Resolution Tick
+                if getattr(gs, 'decision_phase_active', False) and not getattr(gs, 'decision_resolved', False):
+                    if hasattr(gs, 'decision_phase_deadline'):
+                        d_remaining = max(0, int(gs.decision_phase_deadline - _time.time()))
+                        await broadcast_to_room(room_code, {
+                            "type": "DECISION_TIMER_UPDATE",
+                            "payload": {"time_remaining": d_remaining}
+                        })
+                        if d_remaining <= 0:
+                            await force_resolve_decision_phase(room_code, gs, room, broadcast_to_room)
+
+                # 7. Check match exploration timer expiration -> trigger Decision Phase
+                if elapsed >= timer_limit and not getattr(gs, 'decision_phase_active', False) and not getattr(gs, 'decision_resolved', False):
+                    gs.decision_phase_active = True
+                    gs.decision_resolved = False
+                    gs.decision_phase_deadline = _time.time() + 60.0
+                    bot_manager.on_phase_change(room_code, 'decision', gs, room, broadcast_to_room, send_to_player)
+                    await broadcast_to_room(room_code, {
+                        "type": "DECISION_PHASE",
+                        "payload": {"status": "started", "reason": "TIME_EXPIRED", "time_remaining": 60}
+                    })
+
+            except Exception as tick_error:
+                logger.error(
+                    f"[Game Loop] Tick error in room {room_code}: {tick_error}",
+                    exc_info=True
+                )
 
             await asyncio.sleep(1.0)
     except asyncio.CancelledError:
@@ -426,6 +442,7 @@ async def run_authoritative_game_loop(room_code: str):
     finally:
         if room_code in active_game_loops:
             del active_game_loops[room_code]
+
 
 # Reconnection tracking: room_code -> {pid_str: disconnect_timestamp}
 disconnected_players: Dict[str, Dict[str, float]] = {}

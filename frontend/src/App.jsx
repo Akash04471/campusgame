@@ -6,6 +6,8 @@ import SplashScreen from './components/ui/SplashScreen'
 import StoryCinematic from './components/ui/StoryCinematic'
 import useGameStore from './store/gameStore'
 import { SCREENS } from './store/gameStore'
+import audioManager from './utils/audioManager'
+
 
 /* ──────────────────── Loading Screen ──────────────────── */
 function LoadingScreen({ onFinish }) {
@@ -248,7 +250,15 @@ function useGameWebSocket(roomCode, playerId) {
           case 'CCTV_REPORT': setCctvReport(payload); break
           case 'CORRELATION_RESULT': addCorrelation(payload.evidence_id_a, payload.evidence_id_b, payload); break
           case 'NPC_POSITIONS': setNpcs(payload.npcs || []); break
-          case 'TASK_COMPLETED': updateTask(payload.task); break
+          case 'TASK_COMPLETED':
+            if (payload && payload.task) {
+              updateTask(payload.task)
+            }
+            if (payload && payload.player_id && String(payload.player_id) === String(playerId)) {
+              audioManager.playSfx('taskComplete')
+            }
+            break
+
           case 'GLOBAL_TASK_PROGRESS': if (payload) setGlobalTaskPercent(payload); break
           case 'ACCUSATION_PHASE':
           case 'DECISION_PHASE':

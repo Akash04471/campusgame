@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, CheckCircle2, RotateCw, Zap, Wrench, Shield, AlertTriangle, Play, Sparkles } from 'lucide-react'
 import useGameStore from '../../store/gameStore'
+import audioManager from '../../utils/audioManager'
 
 /* ──────────────────────────────────────────────────────────────
    VARIANT 1: WIRE MATCH (REPAIR_NETWORK, CHECK_CCTV)
@@ -26,6 +27,7 @@ function WireMatchGame({ onSuccess, onCancel }) {
 
   const handleLeftClick = (leftIdx) => {
     if (isSuccess) return
+    audioManager.playSfx('taskProgress')
     setSelectedWire(leftIdx)
   }
 
@@ -35,9 +37,11 @@ function WireMatchGame({ onSuccess, onCancel }) {
     const rightPortColor = WIRE_COLORS[rightPorts[rightIdx]].id
 
     if (leftWireColor === rightPortColor) {
+      audioManager.playSfx('taskProgress')
       const updated = { ...connections, [selectedWire]: rightIdx }
       setConnections(updated)
       setSelectedWire(null)
+
 
       if (Object.keys(updated).length === 4) {
         setIsSuccess(true)
@@ -375,7 +379,14 @@ export default function TaskMinigame() {
   const ws = useGameStore((s) => s.ws)
   const updateTask = useGameStore((s) => s.updateTask)
 
+  useEffect(() => {
+    if (activeMinigameTask) {
+      audioManager.playSfx('taskStart')
+    }
+  }, [activeMinigameTask])
+
   if (!activeMinigameTask) return null
+
 
   const taskType = activeMinigameTask.task_type
 
