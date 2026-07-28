@@ -7,10 +7,11 @@ import TaskZones from './TaskZones'
 import NPCCharacters from './NPCCharacters'
 import GameHUD from '../ui/GameHUD'
 import MeetingScreen from '../ui/MeetingScreen'
-import AccusationScreen from '../ui/AccusationScreen'
+import DecisionPhaseScreen from '../ui/DecisionPhaseScreen'
 import ResultsScreen from '../ui/ResultsScreen'
 import TaskMinigame from '../ui/TaskMinigame'
 import useGameStore from '../../store/gameStore'
+
 
 function SceneLoader() {
   return (
@@ -94,8 +95,9 @@ export default function GameScene() {
       {/* Modal Overlays */}
       <TaskMinigame />
       <MeetingScreen />
-      <AccusationScreen />
+      <DecisionPhaseScreen />
       <ResultsScreen />
+
 
       {/* Cinematic vignette overlay */}
       <div className="game-vignette" />

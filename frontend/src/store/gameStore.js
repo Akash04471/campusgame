@@ -116,11 +116,20 @@ const useGameStore = create((set, get) => ({
   // ── CCTV Report ──
   cctvReport: null,        // { area, movement_replay, generated_evidence } from server
 
-  // ── Accusation Prefill ──
-  prefilledMastermindSuspect: null,
+  // ── Decision Phase ──
+  decisionPhase: {
+    detectiveChoice: null,
+    investigatorChoices: {},
+    submitted: {
+      detective: false,
+      investigators: {},
+    },
+    timeoutSeconds: 60,
+  },
 
   // ── Results ──
   gameResult: null,
+
 
 
   // ── WebSocket ──
@@ -236,6 +245,52 @@ const useGameStore = create((set, get) => ({
   // Game result
   setGameResult: (result) => set({ gameResult: result, gamePhase: 'results' }),
   setPrefilledMastermindSuspect: (pid) => set({ prefilledMastermindSuspect: pid }),
+
+  // Decision Phase actions
+  setDecisionPhaseState: (newState) => set((s) => ({
+    decisionPhase: typeof newState === 'function'
+      ? newState(s.decisionPhase)
+      : { ...s.decisionPhase, ...newState }
+  })),
+  setDetectiveChoice: (choice) => set((s) => ({
+    decisionPhase: { ...s.decisionPhase, detectiveChoice: choice }
+  })),
+  setInvestigatorChoice: (pid, choice) => set((s) => ({
+    decisionPhase: {
+      ...s.decisionPhase,
+      investigatorChoices: { ...s.decisionPhase.investigatorChoices, [pid]: choice }
+    }
+  })),
+  setPlayerSubmitted: (role, pid = null) => set((s) => {
+    const isDetective = role?.toUpperCase() === 'DETECTIVE'
+    if (isDetective) {
+      return {
+        decisionPhase: {
+          ...s.decisionPhase,
+          submitted: { ...s.decisionPhase.submitted, detective: true }
+        }
+      }
+    } else {
+      return {
+        decisionPhase: {
+          ...s.decisionPhase,
+          submitted: {
+            ...s.decisionPhase.submitted,
+            investigators: { ...s.decisionPhase.submitted.investigators, [pid]: true }
+          }
+        }
+      }
+    }
+  }),
+  resetDecisionPhase: () => set({
+    decisionPhase: {
+      detectiveChoice: null,
+      investigatorChoices: {},
+      submitted: { detective: false, investigators: {} },
+      timeoutSeconds: 60,
+    }
+  }),
+
 
 
   // WS

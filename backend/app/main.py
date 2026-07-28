@@ -1215,7 +1215,7 @@ async def websocket_game_endpoint(websocket: WebSocket, room_code: str, player_i
                 pass
 
             # ── Final Accusation / Decision Phase ──
-            elif action == "SUBMIT_ACCUSATION":
+            elif action in ("SUBMIT_DECISION", "SUBMIT_ACCUSATION"):
                 player_role = (gs.assignments.get(pid_str) or "").upper()
                 if player_role in ("MASTERMIND", "CONSPIRATOR"):
                     await send_to_player(room_code, p_id, {
@@ -1224,34 +1224,76 @@ async def websocket_game_endpoint(websocket: WebSocket, room_code: str, player_i
                     })
                     continue
 
-                accusation = {
-                    "mastermind_accusation": data.get("mastermind_accusation"),
-                    "conspirator_accusation": data.get("conspirator_accusation"),
-                    "voter_role": player_role,
-                    "voter_id": pid_str,
-                }
-                
-                db = SessionLocal()
-                try:
-                    result = resolve_game(
-                        room_code=room_code,
-                        assignments=gs.assignments,
-                        mastermind_id=gs.mastermind_id,
-                        conspirator_id=gs.conspirator_id,
-                        accusation=accusation,
-                        player_names=player_names,
-                        session_db_id=getattr(gs, 'db_session_id', None),
-                        db=db,
-                    )
-                    db.commit()
-                finally:
-                    db.close()
-                gs.is_active = False
-                room.status = "finished"
+                if not hasattr(gs, 'decision_votes'):
+                    gs.decision_votes = {
+                        'detective_choice': None,
+                        'investigator_choices': {},
+                        'submitted_detective': False,
+                        'submitted_investigators': set(),
+                    }
+
+                conspirator_choice = data.get("conspirator_choice") or data.get("conspirator_accusation")
+                mastermind_choice = data.get("mastermind_choice") or data.get("mastermind_accusation")
+
+                if player_role == "DETECTIVE":
+                    gs.decision_votes['detective_choice'] = conspirator_choice
+                    gs.decision_votes['submitted_detective'] = True
+                elif player_role == "INVESTIGATOR":
+                    gs.decision_votes['investigator_choices'][pid_str] = mastermind_choice
+                    gs.decision_votes['submitted_investigators'].add(pid_str)
+
+                # Broadcast submission acknowledgment
                 await broadcast_to_room(room_code, {
-                    "type": "GAME_OVER",
-                    "payload": result
+                    "type": "DECISION_SUBMITTED",
+                    "payload": {
+                        "role": player_role,
+                        "voter_id": pid_str
+                    }
                 })
+
+                # Check if Detective and all active Investigators have submitted
+                active_investigators = {
+                    p_id_k for p_id_k, r in gs.assignments.items()
+                    if r == "INVESTIGATOR" and p_id_k in room.players
+                }
+                has_detective = any(r == "DETECTIVE" for r in gs.assignments.values())
+
+                detective_done = not has_detective or gs.decision_votes['submitted_detective']
+                investigators_done = active_investigators.issubset(gs.decision_votes['submitted_investigators'])
+
+                if detective_done and investigators_done:
+                    inv_choices = list(gs.decision_votes['investigator_choices'].values())
+                    chosen_mm = mastermind_choice or (inv_choices[0] if inv_choices else None)
+
+                    accusation = {
+                        "mastermind_accusation": chosen_mm,
+                        "conspirator_accusation": gs.decision_votes['detective_choice'],
+                        "voter_role": player_role,
+                        "voter_id": pid_str,
+                    }
+                    
+                    db = SessionLocal()
+                    try:
+                        result = resolve_game(
+                            room_code=room_code,
+                            assignments=gs.assignments,
+                            mastermind_id=gs.mastermind_id,
+                            conspirator_id=gs.conspirator_id,
+                            accusation=accusation,
+                            player_names=player_names,
+                            session_db_id=getattr(gs, 'db_session_id', None),
+                            db=db,
+                        )
+                        db.commit()
+                    finally:
+                        db.close()
+                    gs.is_active = False
+                    room.status = "finished"
+                    await broadcast_to_room(room_code, {
+                        "type": "GAME_OVER",
+                        "payload": result
+                    })
+
 
     except WebSocketDisconnect:
         player.websocket = None

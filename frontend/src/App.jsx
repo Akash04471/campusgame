@@ -250,11 +250,21 @@ function useGameWebSocket(roomCode, playerId) {
           case 'NPC_POSITIONS': setNpcs(payload.npcs || []); break
           case 'TASK_COMPLETED': updateTask(payload.task); break
           case 'GLOBAL_TASK_PROGRESS': if (payload) setGlobalTaskPercent(payload); break
-          case 'ACCUSATION_PHASE': setGamePhase('accusation'); break
+          case 'ACCUSATION_PHASE':
+          case 'DECISION_PHASE':
+            setGamePhase('decision')
+            break
+          case 'DECISION_SUBMITTED':
+            if (payload) {
+              const { role, voter_id } = payload
+              useGameStore.getState().setPlayerSubmitted(role, voter_id)
+            }
+            break
           case 'PLAYER_MOVED': if (String(payload.player_id) !== String(playerId)) updateOtherPlayer(payload.player_id, { position: payload.position, rotation: payload.rotation }); break
           case 'PLAYER_DISCONNECTED': removeOtherPlayer(payload.player_id); break
 
           case 'GAME_OVER': setGameResult(payload); break
+
           default: break
         }
       } catch (e) { console.error('[WS] Parse error:', e) }
