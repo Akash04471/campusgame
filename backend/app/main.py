@@ -24,7 +24,9 @@ from app.game.cctv_service import get_or_create_cctv_engine, cleanup_cctv_engine
 from app.game.correlation_engine import correlation_engine
 from app.game.suspect_dossier_service import suspect_dossier_engine
 from app.game.bot_chat_service import bot_chat_service
+from app.game.bot_manager import bot_manager
 from app.db.base import Base
+
 
 from app.db.session import engine, SessionLocal
 
@@ -574,8 +576,12 @@ async def websocket_lobby_endpoint(websocket: WebSocket, room_code: str, player_
                         }
                     })
                 
+                # Trigger BotManager for exploration phase
+                bot_manager.on_phase_change(room_code, 'exploration', gs, room, broadcast_to_room, send_to_player)
+
                 # Start authoritative background game loop
                 active_game_loops[room_code] = asyncio.create_task(run_authoritative_game_loop(room_code))
+
 
     except WebSocketDisconnect:
         player.websocket = None
@@ -1204,15 +1210,24 @@ async def websocket_game_endpoint(websocket: WebSocket, room_code: str, player_i
                 # Host can end meeting
                 if room.host_id == p_id:
                     meeting_manager.end_meeting(room_code)
+                    bot_manager.on_phase_change(room_code, 'exploration', gs, room, broadcast_to_room, send_to_player)
                     await broadcast_to_room(room_code, {
                         "type": "MEETING_ENDED",
                         "payload": {"resumed": True}
                     })
 
+            elif action in ("START_DECISION_PHASE", "TRIGGER_DECISION_PHASE"):
+                bot_manager.on_phase_change(room_code, 'decision', gs, room, broadcast_to_room, send_to_player)
+                await broadcast_to_room(room_code, {
+                    "type": "DECISION_PHASE",
+                    "payload": {"status": "started"}
+                })
+
             # ── Midpoint meeting check ──
             elif action == "TIMER_TICK":
                 # Ticks are now server-authoritative. Clients sending heartbeats is a no-op.
                 pass
+
 
             # ── Final Accusation / Decision Phase ──
             elif action in ("SUBMIT_DECISION", "SUBMIT_ACCUSATION"):

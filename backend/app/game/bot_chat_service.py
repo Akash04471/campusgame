@@ -3,7 +3,35 @@ import random
 import time
 from typing import Dict, List, Optional
 
-# ── Role-based Character Chat Lines ───────────────────────────────────────────
+CHAT_TEMPLATES = {
+    'suspicious': [
+        "I don't trust {player}, they've been quiet.",
+        "{player} was near the task area at a weird time.",
+        "Something feels off about {player}.",
+    ],
+    'defensive': [
+        "I was just doing my task, wasn't near anyone.",
+        "Why is everyone looking at me?",
+        "I didn't do anything suspicious.",
+    ],
+    'neutral': [
+        "Anyone have new info?",
+        "Let's think about this carefully.",
+        "Who do we suspect right now?",
+    ],
+    'accusatory': [
+        "I think it's {player}.",
+        "{player} needs to explain themselves.",
+        "Vote out {player}, I'm sure.",
+    ]
+}
+
+PERSONA_CATEGORY_WEIGHTS = {
+    'aggressive': {'accusatory': 0.4, 'suspicious': 0.4, 'neutral': 0.1, 'defensive': 0.1},
+    'quiet':      {'neutral': 0.5, 'defensive': 0.3, 'suspicious': 0.1, 'accusatory': 0.1},
+    'neutral':    {'neutral': 0.4, 'suspicious': 0.2, 'defensive': 0.2, 'accusatory': 0.2},
+}
+
 
 BOT_MEETING_LINES = {
     'DETECTIVE': [
@@ -169,5 +197,16 @@ class BotChatService:
             'timestamp': time.time()
         }
 
+    def generate_template_message(self, persona: str, target_player_name: str) -> str:
+        """Generates template-based chat message weighted by persona."""
+        weights = PERSONA_CATEGORY_WEIGHTS.get(persona, PERSONA_CATEGORY_WEIGHTS['neutral'])
+        categories = list(weights.keys())
+        prob_dist = list(weights.values())
+        chosen_cat = random.choices(categories, weights=prob_dist, k=1)[0]
+        templates = CHAT_TEMPLATES.get(chosen_cat, CHAT_TEMPLATES['neutral'])
+        raw_template = random.choice(templates)
+        return raw_template.format(player=target_player_name)
+
 
 bot_chat_service = BotChatService()
+
