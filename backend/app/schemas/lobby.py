@@ -3,7 +3,7 @@ from typing import List, Optional
 
 class RoomCreate(BaseModel):
     difficulty: Optional[str] = Field("standard")
-    max_players: int = Field(2, ge=1, le=6)
+    max_players: int = Field(1, ge=1, le=4)
 
 class RoomJoin(BaseModel):
     room_code: str = Field(..., min_length=1, max_length=10)
