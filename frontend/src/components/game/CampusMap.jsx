@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, memo } from 'react'
 import * as THREE from 'three'
 import useGameStore from '../../store/gameStore'
 
@@ -259,10 +259,13 @@ function Path({ pos, size, onGroundClick }) {
   )
 }
 
-/* ── Low-poly Tree ── */
-function Tree({ pos }) {
-  const trunkH = 1.6 + Math.random() * 0.4
-  const canopyR = 0.9 + Math.random() * 0.5
+/* ── Low-poly Tree — stable random via useMemo so geometry never thrashes ── */
+const Tree = memo(function Tree({ pos }) {
+  // useMemo with pos as key so values are frozen after first render
+  const { trunkH, canopyR } = useMemo(() => ({
+    trunkH: 1.6 + (Math.abs(pos[0] * 7 + pos[2] * 3) % 10) / 25,
+    canopyR: 0.9 + (Math.abs(pos[0] * 3 + pos[2] * 7) % 10) / 20,
+  }), [pos[0], pos[2]])
   return (
     <group position={pos}>
       {/* Trunk */}
@@ -281,10 +284,10 @@ function Tree({ pos }) {
       </mesh>
     </group>
   )
-}
+})
 
-/* ── Street Lamp ── */
-function StreetLamp({ pos }) {
+/* ── Street Lamp — emissive glow only, NO pointLight to save GPU budget ── */
+const StreetLamp = memo(function StreetLamp({ pos }) {
   return (
     <group position={pos}>
       {/* Post */}
@@ -297,27 +300,19 @@ function StreetLamp({ pos }) {
         <cylinderGeometry args={[0.03, 0.03, 0.8, 8]} />
         <meshStandardMaterial color="#334155" roughness={0.6} metalness={0.7} />
       </mesh>
-      {/* Glow cap */}
+      {/* Glow cap — emissive only, no pointLight to preserve GPU light budget */}
       <mesh position={[0.65, 4.55, 0]}>
         <boxGeometry args={[0.25, 0.15, 0.2]} />
         <meshStandardMaterial
           color="#f8fafc"
           emissive="#fef08a"
-          emissiveIntensity={1.2}
+          emissiveIntensity={2.5}
           roughness={0.2}
         />
       </mesh>
-      {/* Light Source */}
-      <pointLight
-        position={[0.65, 4.3, 0]}
-        intensity={1.0}
-        distance={10}
-        color="#fbbf24"
-        castShadow={false}
-      />
     </group>
   )
-}
+})
 
 /* ── Main Landmark Sign Board ── */
 function CampusEntranceSign() {
@@ -611,8 +606,10 @@ function Stars() {
   return null
 }
 
-/* ── Main map exporter ── */
-export default function CampusMap() {
+/* ── Main map exporter — wrapped in React.memo so it NEVER re-renders
+   when game state (players, timer, evidence) changes. The map is purely
+   static geometry; re-rendering it was thrashing WebGL buffers. ── */
+export default memo(function CampusMap() {
   // No day-night cycle — always full day lighting
   const setClickTarget = useGameStore((s) => s.setClickTarget)
 
@@ -698,4 +695,4 @@ export default function CampusMap() {
       ))}
     </group>
   )
-}
+})

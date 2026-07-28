@@ -398,9 +398,7 @@ function OtherPlayerCharacter({ data }) {
           side={THREE.DoubleSide}
         />
       </mesh>
-
-      {/* Point light glow */}
-      <pointLight position={[0, 2.2, 0]} intensity={3} distance={6} color={baseColor} castShadow />
+      {/* NO pointLight here — removed to stay within WebGL per-draw light limit */}
     </group>
   )
 }
@@ -881,13 +879,13 @@ export default function Player() {
           />
         </mesh>
 
-        {/* High-intensity personal point light for player visibility */}
+        {/* High-intensity personal point light for player visibility — single light only */}
         <pointLight
           position={[0, 2.2, 0]}
-          intensity={8}
-          distance={10}
+          intensity={5}
+          distance={8}
           color={role === 'DETECTIVE' ? '#a5f3fc' : '#fecdd3'}
-          castShadow
+          castShadow={false}
         />
       </group>
 
