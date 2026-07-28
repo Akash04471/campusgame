@@ -551,7 +551,7 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
   useEffect(() => {
     if (tab === 'browse') {
       fetchRooms()
-      const pollInterval = setInterval(fetchRooms, 10000)
+      const pollInterval = setInterval(fetchRooms, 5000)
       return () => clearInterval(pollInterval)
     }
   }, [tab, fetchRooms])
@@ -565,29 +565,20 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
       }, auth?.token)
       onJoinedRoom(resRoom)
     } catch (err) {
-      // Fallback: generate a valid 6-char mock room code
-      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-      let mockCode = ''
-      for (let i = 0; i < 6; i++) mockCode += chars[Math.floor(Math.random() * chars.length)]
-      const mockRoom = {
-        room_code: mockCode,
-        status: 'waiting',
-        difficulty: 'standard',
-        host_id: auth?.userId || 1,
-        max_players: maxPlayers,
-        players: [{ player_id: auth?.userId || 1, username: auth?.username || 'Agent', is_ready: true }]
-      }
-      onJoinedRoom(mockRoom)
+      setError(err.message || 'Failed to create room on server. Check your connection or login status.')
     }
     setLoading(false)
   }
 
   const joinRoom = async (code) => {
     setError(''); setLoading(true)
+    const cleanCode = (code || joinCode || '').trim().toUpperCase()
     try {
-      const room = await apiFetch('/api/v1/lobby/join', { method: 'POST', body: JSON.stringify({ room_code: code || joinCode }) }, auth.token)
+      const room = await apiFetch('/api/v1/lobby/join', { method: 'POST', body: JSON.stringify({ room_code: cleanCode }) }, auth?.token)
       onJoinedRoom(room)
-    } catch (err) { setError(err.message) }
+    } catch (err) {
+      setError(err.message || `Failed to join room '${cleanCode}'`)
+    }
     setLoading(false)
   }
 
@@ -665,7 +656,7 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <p className="cu-modal-field-label" style={{ margin: 0 }}>ACTIVE TERMINALS ({rooms.length})</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 10, color: '#475569', fontFamily: 'monospace' }}>auto-refresh 10s</span>
+                <span style={{ fontSize: 10, color: '#475569', fontFamily: 'monospace' }}>live-sync 5s</span>
                 <button onClick={fetchRooms} style={{ background: 'none', border: 'none', color: '#06b6d4', cursor: 'pointer', fontSize: 12, fontFamily: 'monospace' }}>↻ REFRESH</button>
               </div>
             </div>
@@ -673,22 +664,27 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
               ? <p style={{ color: '#f59e0b', fontFamily: 'monospace', fontSize: 12, textAlign: 'center', padding: '20px 0' }}>⚠️ Login required to browse rooms.</p>
               : rooms.length === 0
               ? <p style={{ color: '#475569', fontFamily: 'monospace', fontSize: 12, textAlign: 'center', padding: '20px 0' }}>No active terminals found. Create a room to get started!</p>
-              : rooms.map(r => (
-                <div key={r.room_code} className="cu-room-row">
-                  <code className="cu-room-code">{r.room_code}</code>
-                  <span className="cu-room-meta">
-                    {(r.players?.length ?? r.player_count ?? 0)}/{r.max_players} players · {STANDARD_GAME_LABEL}
-                  </span>
-                  <button
-                    className="cu-room-join-btn"
-                    onClick={() => joinRoom(r.room_code)}
-                    disabled={loading || (r.players?.length ?? 0) >= r.max_players}
-                    data-hover
-                  >
-                    {(r.players?.length ?? 0) >= r.max_players ? 'FULL' : 'CONNECT'}
-                  </button>
-                </div>
-              ))}
+              : rooms.map(r => {
+                const currentCount = r.players?.length ?? r.player_count ?? 0
+                const isFull = currentCount >= r.max_players
+                return (
+                  <div key={r.room_code} className="cu-room-row">
+                    <code className="cu-room-code">{r.room_code}</code>
+                    <span className="cu-room-meta">
+                      {currentCount}/{r.max_players} players · {STANDARD_GAME_LABEL}
+                    </span>
+                    <button
+                      className="cu-room-join-btn"
+                      onClick={() => joinRoom(r.room_code)}
+                      disabled={loading || isFull}
+                      style={{ opacity: isFull ? 0.5 : 1, cursor: isFull ? 'not-allowed' : 'pointer' }}
+                      data-hover={!isFull}
+                    >
+                      {isFull ? 'FULL' : 'CONNECT'}
+                    </button>
+                  </div>
+                )
+              })}
           </div>
         )}
       </div>
@@ -713,6 +709,8 @@ function WaitingRoom({ auth, room: init, onGameStarted, onClose }) {
   // isHost: either your id matches host_id, OR the room code was locally-generated (no auth)
   const isHost = String(room.host_id) === String(myId) || !auth?.token
 
+  const [wsError, setWsError] = useState('')
+
   useEffect(() => {
     if (!auth?.token) return
     const wsUrl = `${getWsProtocol()}://${getBackendHost()}/ws/lobby/${room.room_code}/${myId}?token=${encodeURIComponent(auth.token)}`
@@ -721,11 +719,12 @@ function WaitingRoom({ auth, room: init, onGameStarted, onClose }) {
     ws.onmessage = (e) => {
       try {
         const { type, payload } = JSON.parse(e.data)
+        if (type === 'ERROR') setWsError(payload?.message || 'WebSocket connection error.')
         if (type === 'LOBBY_STATE' || type === 'LOBBY_STATE_UPDATE') setRoom(payload)
         if (type === 'ROLE_REVEAL' || type === 'GAME_STARTED') onGameStarted(room.room_code, myId, auth.username)
       } catch {}
     }
-    ws.onerror = () => console.warn('[Lobby WS] Connection error')
+    ws.onerror = () => setWsError('Connection error to tactical deck server.')
     return () => ws.close()
   }, [auth, room.room_code, myId, onGameStarted])
 
@@ -761,6 +760,8 @@ function WaitingRoom({ auth, room: init, onGameStarted, onClose }) {
           </div>
           <p className="cu-modal-agent">{STANDARD_GAME_LABEL} · {players.length}/{room.max_players} agents online</p>
         </div>
+
+        {wsError && <div className="cu-auth-msg cu-auth-msg-err">{wsError}</div>}
 
         <div className="cu-waiting-players">
           {players.map((p, i) => (
