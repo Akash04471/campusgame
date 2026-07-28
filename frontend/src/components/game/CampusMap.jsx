@@ -285,11 +285,6 @@ function Tree({ pos }) {
 
 /* ── Street Lamp ── */
 function StreetLamp({ pos }) {
-  const timeRemaining = useGameStore((s) => s.timeRemaining)
-  const timerSeconds = useGameStore((s) => s.timerSeconds)
-  const elapsed = Math.max(0, timerSeconds - timeRemaining)
-  const nightFactor = Math.min(1.0, elapsed / 600)
-
   return (
     <group position={pos}>
       {/* Post */}
@@ -308,17 +303,17 @@ function StreetLamp({ pos }) {
         <meshStandardMaterial
           color="#f8fafc"
           emissive="#fef08a"
-          emissiveIntensity={nightFactor > 0.35 ? 3.0 : 0}
+          emissiveIntensity={1.2}
           roughness={0.2}
         />
       </mesh>
       {/* Light Source */}
       <pointLight
         position={[0.65, 4.3, 0]}
-        intensity={nightFactor > 0.35 ? 4.5 * nightFactor : 0}
+        intensity={1.0}
         distance={10}
         color="#fbbf24"
-        castShadow={nightFactor > 0.5}
+        castShadow={false}
       />
     </group>
   )
@@ -346,11 +341,6 @@ function CampusEntranceSign() {
 
 /* ── Dynamic building renderer ── */
 function Building({ b, onGroundClick }) {
-  const timeRemaining = useGameStore((s) => s.timeRemaining)
-  const timerSeconds = useGameStore((s) => s.timerSeconds)
-  const elapsed = Math.max(0, timerSeconds - timeRemaining)
-  const nightFactor = Math.min(1.0, elapsed / 600)
-
   const [bw, bh, bd] = b.size
   const windowCols = Math.max(2, Math.floor(bw / 2.8))
   const windowRows = b.floors || Math.max(2, Math.floor(bh / 2.8))
