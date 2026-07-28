@@ -24,8 +24,11 @@ export const getWsProtocol = () => {
   return window.location.protocol === 'https:' ? 'wss' : 'ws'
 }
 
-const API_BASE = import.meta.env.VITE_API_URL ||
-  `${window.location.protocol}//${window.location.hostname}:8000`
+const rawApiUrl = import.meta.env.VITE_API_URL
+const API_BASE = rawApiUrl
+  ? rawApiUrl.replace(/\/$/, '')
+  : `${window.location.protocol}//${window.location.hostname}:8000`
+
 
 /* ─────────────────────────────────────────────
    HELPER — API

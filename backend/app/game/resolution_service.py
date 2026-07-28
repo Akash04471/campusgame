@@ -71,9 +71,10 @@ def resolve_game(
     detective_correct = False
     if accusation:
         detective_guess = accusation.get('conspirator_accusation')
-        detective_correct = (detective_guess == conspirator_id) if conspirator_id else True
+        detective_correct = (detective_guess == conspirator_id) if (conspirator_id and detective_guess) else False
     else:
-        detective_correct = True
+        detective_correct = False
+
 
     # Calculate Investigator majority resolution
     if investigator_choices is not None:

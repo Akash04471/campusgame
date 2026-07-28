@@ -254,12 +254,18 @@ function useGameWebSocket(roomCode, playerId) {
           case 'DECISION_PHASE':
             setGamePhase('decision')
             break
+          case 'DECISION_TIMER_UPDATE':
+            if (payload && payload.time_remaining !== undefined) {
+              useGameStore.getState().setDecisionPhaseState({ timeRemaining: payload.time_remaining })
+            }
+            break
           case 'DECISION_SUBMITTED':
             if (payload) {
               const { role, voter_id } = payload
               useGameStore.getState().setPlayerSubmitted(role, voter_id)
             }
             break
+
           case 'PLAYER_MOVED': if (String(payload.player_id) !== String(playerId)) updateOtherPlayer(payload.player_id, { position: payload.position, rotation: payload.rotation }); break
           case 'PLAYER_DISCONNECTED': removeOtherPlayer(payload.player_id); break
 

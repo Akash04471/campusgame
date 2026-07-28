@@ -48,23 +48,16 @@ app = FastAPI(
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
-# CORS
-if settings.ENVIRONMENT == "development":
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origin_regex="https?://.*",
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-elif settings.BACKEND_CORS_ORIGINS:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+# CORS configuration for development and production (Vercel + custom origins)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_origin_regex=r"https?://.*",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 
 # ── Create all DB tables on startup ──
@@ -134,7 +127,73 @@ BOT_WAYPOINTS = [
     {"area": "Cafeteria", "position": [34, 0.5, -22]}
 ]
 
+async def force_resolve_decision_phase(room_code: str, gs, room, broadcast_func):
+
+    """
+    Force-resolves the Decision Phase using whatever votes exist so far.
+    Called when Decision Phase timer expires or when all active voters submit.
+    """
+    if getattr(gs, 'decision_resolved', False):
+        return
+    gs.decision_resolved = True
+    gs.decision_phase_active = False
+
+    if not hasattr(gs, 'decision_votes'):
+        gs.decision_votes = {
+            'detective_choice': None,
+            'investigator_choices': {},
+            'submitted_detective': False,
+            'submitted_investigators': set(),
+        }
+
+    player_names = {str(pid): p.username for pid, p in room.players.items()}
+    accusation = {
+        "conspirator_accusation": gs.decision_votes['detective_choice'],
+    }
+
+    db = SessionLocal()
+    try:
+        result = resolve_game(
+            room_code=room_code,
+            assignments=gs.assignments,
+            mastermind_id=gs.mastermind_id,
+            conspirator_id=gs.conspirator_id,
+            accusation=accusation,
+            player_names=player_names,
+            session_db_id=getattr(gs, 'db_session_id', None),
+            db=db,
+            investigator_choices=gs.decision_votes['investigator_choices'],
+        )
+        db.commit()
+    except Exception as e:
+        logger.error(f"[Resolution] Error in force_resolve_decision_phase for room {room_code}: {e}", exc_info=True)
+        result = {
+            'winner_faction': 'VILLAINS',
+            'correct_accusation': False,
+            'winningRoles': ['MASTERMIND', 'CONSPIRATOR'],
+            'mastermind_id': gs.mastermind_id,
+            'conspirator_id': gs.conspirator_id,
+            'actualConspirator': {'id': gs.conspirator_id, 'name': player_names.get(gs.conspirator_id, 'Conspirator')},
+            'actualMastermind': {'id': gs.mastermind_id, 'name': player_names.get(gs.mastermind_id, 'Mastermind')},
+            'detective': {'playerId': None, 'guess': None, 'guessName': None, 'correct': False},
+            'investigators': {'success': False, 'finalGuess': None, 'finalGuessName': None, 'voteCounts': {}, 'correct': False, 'failMessage': 'The Investigators could not reach a majority decision.'},
+            'player_stats': [],
+            'all_roles': gs.assignments,
+            'player_names': player_names,
+        }
+    finally:
+        db.close()
+
+    gs.is_active = False
+    room.status = "finished"
+    await broadcast_func(room_code, {
+        "type": "GAME_OVER",
+        "payload": result
+    })
+
+
 async def run_authoritative_game_loop(room_code: str):
+
     logger.info(f"[Game Loop] Starting authoritative loop for room {room_code}")
     try:
         while True:
@@ -335,14 +394,28 @@ async def run_authoritative_game_loop(room_code: str):
                         else:
                             await broadcast_to_room(room_code, {"type": "CHAT_MESSAGE", "payload": bot_msg})
 
-            # 7. Check game over due to time expiration
-            if elapsed >= timer_limit:
+            # 6.8 Decision Phase Countdown & Force Resolution Tick
+            if getattr(gs, 'decision_phase_active', False) and not getattr(gs, 'decision_resolved', False):
+                if hasattr(gs, 'decision_phase_deadline'):
+                    d_remaining = max(0, int(gs.decision_phase_deadline - _time.time()))
+                    await broadcast_to_room(room_code, {
+                        "type": "DECISION_TIMER_UPDATE",
+                        "payload": {"time_remaining": d_remaining}
+                    })
+                    if d_remaining <= 0:
+                        await force_resolve_decision_phase(room_code, gs, room, broadcast_to_room)
+
+            # 7. Check match exploration timer expiration -> trigger Decision Phase
+            if elapsed >= timer_limit and not getattr(gs, 'decision_phase_active', False) and not getattr(gs, 'decision_resolved', False):
+                gs.decision_phase_active = True
+                gs.decision_resolved = False
+                gs.decision_phase_deadline = _time.time() + 60.0
                 bot_manager.on_phase_change(room_code, 'decision', gs, room, broadcast_to_room, send_to_player)
                 await broadcast_to_room(room_code, {
-                    "type": "ACCUSATION_PHASE",
-                    "payload": {"reason": "TIME_EXPIRED", "elapsed": elapsed}
+                    "type": "DECISION_PHASE",
+                    "payload": {"status": "started", "reason": "TIME_EXPIRED", "time_remaining": 60}
                 })
-                break
+
 
 
             await asyncio.sleep(1.0)
@@ -1239,10 +1312,14 @@ async def websocket_game_endpoint(websocket: WebSocket, room_code: str, player_i
                     })
 
             elif action in ("START_DECISION_PHASE", "TRIGGER_DECISION_PHASE"):
+                if not getattr(gs, 'decision_phase_active', False):
+                    gs.decision_phase_active = True
+                    gs.decision_resolved = False
+                    gs.decision_phase_deadline = _time.time() + 60.0
                 bot_manager.on_phase_change(room_code, 'decision', gs, room, broadcast_to_room, send_to_player)
                 await broadcast_to_room(room_code, {
                     "type": "DECISION_PHASE",
-                    "payload": {"status": "started"}
+                    "payload": {"status": "started", "time_remaining": 60}
                 })
 
             # ── Midpoint meeting check ──
@@ -1299,35 +1376,8 @@ async def websocket_game_endpoint(websocket: WebSocket, room_code: str, player_i
                 investigators_done = active_investigators.issubset(gs.decision_votes['submitted_investigators'])
 
                 if detective_done and investigators_done:
-                    accusation = {
-                        "conspirator_accusation": gs.decision_votes['detective_choice'],
-                        "voter_role": player_role,
-                        "voter_id": pid_str,
-                    }
-                    
-                    db = SessionLocal()
-                    try:
-                        result = resolve_game(
-                            room_code=room_code,
-                            assignments=gs.assignments,
-                            mastermind_id=gs.mastermind_id,
-                            conspirator_id=gs.conspirator_id,
-                            accusation=accusation,
-                            player_names=player_names,
-                            session_db_id=getattr(gs, 'db_session_id', None),
-                            db=db,
-                            investigator_choices=gs.decision_votes['investigator_choices'],
-                        )
-                        db.commit()
-                    finally:
-                        db.close()
+                    await force_resolve_decision_phase(room_code, gs, room, broadcast_to_room)
 
-                    gs.is_active = False
-                    room.status = "finished"
-                    await broadcast_to_room(room_code, {
-                        "type": "GAME_OVER",
-                        "payload": result
-                    })
 
 
     except WebSocketDisconnect:
