@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Optional
 
 class RoomCreate(BaseModel):
-    difficulty: str = Field("medium")
+    difficulty: str = Field("standard")  # fixed: always standard
     max_players: int = Field(6, ge=1, le=6)
 
 class RoomJoin(BaseModel):

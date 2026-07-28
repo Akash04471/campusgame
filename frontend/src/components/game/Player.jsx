@@ -285,41 +285,51 @@ function OtherPlayerCharacter({ data }) {
   const colors = ['#3b82f6', '#22c55e', '#ec4899', '#f97316', '#a855f7', '#06b6d4', '#14b8a6', '#ef4444']
   const baseColor = colors[parseInt(data.player_id || '0') % colors.length]
 
-  // Fallback spawn positions for bot IDs if initial position hasn't synced yet
-  const defaultPos = useMemo(() => {
-    const defaults = {
-      '9001': [12.0, 0.5, -10.0],
-      '9002': [-10.0, 0.5, 15.0],
-      '9003': [20.0, 0.5, 5.0],
-    }
-    return defaults[String(data.player_id)] || [0.0, 0.5, -35.0]
-  }, [data.player_id])
-
-  // Extract [px, py, pz] safely from position object or array
-  const parsePos = useCallback(() => {
-    if (data.position) {
-      if (typeof data.position.x === 'number') {
-        return [data.position.x, data.position.y ?? 0.5, data.position.z]
-      } else if (Array.isArray(data.position) && data.position.length >= 3) {
-        return [data.position[0], data.position[1] ?? 0.5, data.position[2]]
-      }
-    }
-    return defaultPos
-  }, [data.position, defaultPos])
-
-  // Update target coordinates and snap position if uninitialized
+  // Update target coordinates from WebSocket data
   useEffect(() => {
-    if (!groupRef.current) return
-    const [px, py, pz] = parsePos()
-    targetPos.current.set(px, py, pz)
+    if (data.position) {
+      let px = 0, py = 0, pz = 0
+      if (typeof data.position.x === 'number') {
+        px = data.position.x
+        py = data.position.y ?? 0
+        pz = data.position.z ?? 0
+      } else if (Array.isArray(data.position) && data.position.length >= 3) {
+        px = data.position[0]
+        py = data.position[1] ?? 0
+        pz = data.position[2] ?? 0
+      }
+      targetPos.current.set(px, py, pz)
+    }
     if (data.rotation !== undefined) {
       targetRot.current = data.rotation
     }
-    if (groupRef.current.position.lengthSq() === 0) {
+  }, [
+    data.position?.x,
+    data.position?.z,
+    Array.isArray(data.position) ? data.position[0] : null,
+    Array.isArray(data.position) ? data.position[2] : null,
+    data.position,
+    data.rotation
+  ])
+
+  // Initialize position on mount
+  useEffect(() => {
+    if (groupRef.current && data.position) {
+      let px = 0, py = 0, pz = 0
+      if (typeof data.position.x === 'number') {
+        px = data.position.x
+        py = data.position.y ?? 0
+        pz = data.position.z ?? 0
+      } else if (Array.isArray(data.position) && data.position.length >= 3) {
+        px = data.position[0]
+        py = data.position[1] ?? 0
+        pz = data.position[2] ?? 0
+      }
       groupRef.current.position.set(px, py, pz)
-      prevPos.current.set(px, py, pz)
+      targetPos.current.set(px, py, pz)
+      prevPos.current.copy(groupRef.current.position)
     }
-  }, [parsePos, data.rotation])
+  }, [data.position])
 
   useFrame((_, delta) => {
     if (!groupRef.current) return
@@ -388,7 +398,9 @@ function OtherPlayerCharacter({ data }) {
           side={THREE.DoubleSide}
         />
       </mesh>
-      {/* NO pointLight here — removed to stay within WebGL per-draw light limit */}
+
+      {/* Point light glow */}
+      <pointLight position={[0, 2.2, 0]} intensity={3} distance={6} color={baseColor} castShadow />
     </group>
   )
 }
@@ -869,13 +881,13 @@ export default function Player() {
           />
         </mesh>
 
-        {/* High-intensity personal point light for player visibility — single light only */}
+        {/* High-intensity personal point light for player visibility */}
         <pointLight
           position={[0, 2.2, 0]}
-          intensity={5}
-          distance={8}
+          intensity={8}
+          distance={10}
           color={role === 'DETECTIVE' ? '#a5f3fc' : '#fecdd3'}
-          castShadow={false}
+          castShadow
         />
       </group>
 

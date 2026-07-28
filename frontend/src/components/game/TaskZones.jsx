@@ -420,7 +420,14 @@ function SingleTaskZone({ task }) {
         />
       </mesh>
 
-      {/* ── Glow via emissive only \u2014 no pointLight \u2014 */}
+      {/* ── Point light ── */}
+      <pointLight
+        color={ringCol}
+        intensity={isInZone ? 1.2 : 0.4}
+        distance={isInZone ? 7 : 4}
+        decay={2}
+        position={[0, 1, 0]}
+      />
 
       {/* ── Progress bar (thin strip at ground level) ── */}
       {isInZone && !task.completed && (

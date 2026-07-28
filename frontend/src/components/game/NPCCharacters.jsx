@@ -137,7 +137,10 @@ function SingleNPC({ npc, npcIndex }) {
         />
       </mesh>
 
-      {/* ── Glow handled via emissive material only \u2014 no pointLight \u2014 */}
+      {/* ── Point light — only visible when near ── */}
+      {isNear && (
+        <pointLight color={colors.accent} intensity={0.5} distance={4.0} decay={2} />
+      )}
     </group>
   )
 }

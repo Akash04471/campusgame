@@ -159,7 +159,13 @@ function SingleEvidenceItem({ item, index }) {
         />
       </mesh>
 
-      {/* ── Glow \u2014 emissive material only, no pointLight to preserve GPU light budget \u2014 */}
+      {/* ── Point light halo ── */}
+      <pointLight
+        color={glowColor}
+        intensity={near ? 1.4 : 0.5}
+        distance={near ? 5.0 : 3.0}
+        decay={2}
+      />
 
       {/* ── Animated ground glow ring ── */}
       <mesh
