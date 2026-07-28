@@ -1,6 +1,8 @@
 import React, { Suspense, useState, useEffect, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
+import * as THREE from 'three'
 import CampusMap from './CampusMap'
+
 import Player from './Player'
 import EvidenceItems from './EvidenceItems'
 import TaskZones from './TaskZones'
