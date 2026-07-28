@@ -502,7 +502,7 @@ def health_check():
 @app.websocket("/ws/lobby/{room_code}/{player_id}")
 async def websocket_lobby_endpoint(websocket: WebSocket, room_code: str, player_id: str, token: str = ""):
     await websocket.accept()
-    room_code = room_code.upper()
+    room_code = room_code.strip().upper()
 
     try:
         p_id_check = int(player_id)
@@ -708,7 +708,7 @@ async def websocket_lobby_endpoint(websocket: WebSocket, room_code: str, player_
 @app.websocket("/ws/game/{room_code}/{player_id}")
 async def websocket_game_endpoint(websocket: WebSocket, room_code: str, player_id: str, token: str = ""):
     await websocket.accept()
-    room_code = room_code.upper()
+    room_code = room_code.strip().upper()
 
     try:
         p_id_check = int(player_id)

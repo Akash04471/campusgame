@@ -25,10 +25,10 @@ class PlayerLobbyState:
         }
 
 class RoomLobbyState:
-    def __init__(self, room_code: str, host_id: int, difficulty: str = "medium", max_players: int = 1):
+    def __init__(self, room_code: str, host_id: int, difficulty: str = "standard", max_players: int = 1):
         self.room_code = room_code
         self.host_id = host_id
-        self.difficulty = difficulty
+        self.difficulty = "standard"
         self.max_players = max(1, min(4, max_players))  # 1-4 human players; bots fill rest to 4
         self.status = "waiting"  # waiting, playing, finished
         self.players: Dict[int, PlayerLobbyState] = {}
@@ -42,7 +42,7 @@ class RoomLobbyState:
         return {
             "room_code": self.room_code,
             "status": self.status,
-            "difficulty": self.difficulty,
+            "difficulty": "standard",
             "host_id": self.host_id,
             "max_players": self.max_players,
             "players": [p.to_dict() for p in self.players.values()],
@@ -86,7 +86,7 @@ class LobbyManager:
             if code not in self.rooms:
                 return code
 
-    def create_room(self, host_id: int, host_username: str, difficulty: str = "medium", max_players: int = 1) -> RoomLobbyState:
+    def create_room(self, host_id: int, host_username: str, difficulty: str = "standard", max_players: int = 1) -> RoomLobbyState:
         self.cleanup_stale_rooms()
         room_code = self.generate_room_code()
         room = RoomLobbyState(room_code, host_id, difficulty, max_players)

@@ -561,11 +561,25 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
     try {
       const resRoom = await apiFetch('/api/v1/lobby/create', {
         method: 'POST',
-        body: JSON.stringify({ difficulty: 'standard', max_players: maxPlayers })
+        body: JSON.stringify({ difficulty: 'medium', max_players: maxPlayers })
       }, auth?.token)
       onJoinedRoom(resRoom)
     } catch (err) {
-      setError(err.message || 'Failed to create room on server. Check your connection or login status.')
+      if (err.message && (err.message.includes('greater than or equal to 2') || err.message.includes('max_players'))) {
+        try {
+          const retryRoom = await apiFetch('/api/v1/lobby/create', {
+            method: 'POST',
+            body: JSON.stringify({ difficulty: 'medium', max_players: 2 })
+          }, auth?.token)
+          onJoinedRoom(retryRoom)
+          setLoading(false)
+          return
+        } catch (retryErr) {
+          setError(retryErr.message || 'Failed to create room.')
+        }
+      } else {
+        setError(err.message || 'Failed to create room on server. Check your connection or login status.')
+      }
     }
     setLoading(false)
   }

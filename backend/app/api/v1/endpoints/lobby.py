@@ -13,7 +13,7 @@ def create_room(room_in: RoomCreate, current_user: User = Depends(get_current_us
     room = lobby_manager.create_room(
         host_id=current_user.id,
         host_username=current_user.username,
-        difficulty=room_in.difficulty,
+        difficulty="standard",
         max_players=room_in.max_players
     )
     return room.to_dict()
