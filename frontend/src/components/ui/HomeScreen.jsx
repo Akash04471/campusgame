@@ -728,7 +728,7 @@ function WaitingRoom({ auth, room: init, onGameStarted, onClose }) {
   const [wsError, setWsError] = useState('')
 
   useEffect(() => {
-    if (!auth?.token) return
+    if (!auth?.token || String(room.room_code).startsWith('SOLO')) return
     const wsUrl = `${getWsProtocol()}://${getBackendHost()}/ws/lobby/${room.room_code}/${myId}?token=${encodeURIComponent(auth.token)}`
     const ws = new WebSocket(wsUrl)
     wsRef.current = ws
