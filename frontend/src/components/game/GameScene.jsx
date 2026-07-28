@@ -51,13 +51,18 @@ function LocationReveal() {
   )
 }
 
+const dayFogColor = new THREE.Color('#1e1b4b')
+const nightFogColor = new THREE.Color('#09090b')
+
 export default function GameScene() {
   const timeRemaining = useGameStore((s) => s.timeRemaining)
   const timerSeconds = useGameStore((s) => s.timerSeconds)
   const elapsed = Math.max(0, timerSeconds - timeRemaining)
   const nightFactor = Math.min(1.0, elapsed / 600)
 
-  const fogColor = nightFactor < 0.5 ? '#1e1b4b' : '#09090b'
+  const fogColor = dayFogColor.clone().lerp(nightFogColor, nightFactor).getStyle()
+  const fogNear = THREE.MathUtils.lerp(25, 18, nightFactor)
+  const fogFar = THREE.MathUtils.lerp(110, 70, nightFactor)
 
   return (
     <div className="game-viewport" id="game-viewport">
@@ -77,7 +82,7 @@ export default function GameScene() {
         }}
       >
         {/* Cinematic dynamic fog */}
-        <fog attach="fog" args={[fogColor, 25, 110]} />
+        <fog attach="fog" args={[fogColor, fogNear, fogFar]} />
         <color attach="background" args={[fogColor]} />
 
         <Suspense fallback={<SceneLoader />}>
