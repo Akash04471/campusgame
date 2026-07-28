@@ -574,10 +574,10 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
         setLoading(false)
         return
       }
-      const sendMax = Math.max(2, maxPlayers)
+      const sendMax = Math.max(1, maxPlayers)
       const resRoom = await apiFetch('/api/v1/lobby/create', {
         method: 'POST',
-        body: JSON.stringify({ difficulty: 'standard', max_players: sendMax })
+        body: JSON.stringify({ difficulty: 'medium', max_players: sendMax })
       }, auth?.token)
       onJoinedRoom(resRoom)
     } catch (err) {
