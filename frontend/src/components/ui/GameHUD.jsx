@@ -379,8 +379,9 @@ function Timer() {
 
   useEffect(() => {
     intervalRef.current = setInterval(() => {
-      // 1. Tick local store timer for smooth continuous countdown
+      // 1. Tick local store timer & ability cooldowns for smooth continuous countdown
       useGameStore.getState().tickTimer()
+      useGameStore.getState().tickAbilityCooldowns()
 
       // 2. Read latest state for periodic movement tracking over WS
       const state = useGameStore.getState()

@@ -229,7 +229,18 @@ const useGameStore = create((set, get) => ({
   // Ability actions
   setAbilities: (abilities) => set({ abilities }),
   updateAbility: (updated) => set((s) => ({
-    abilities: s.abilities.map(a => a.ability_id === updated.ability_id ? updated : a)
+    abilities: s.abilities.map(a => a.ability_id === updated.ability_id ? { ...a, ...updated } : a)
+  })),
+  tickAbilityCooldowns: () => set((s) => ({
+    abilities: s.abilities.map(a => {
+      if (!a.is_on_cooldown) return a
+      const remaining = Math.max(0, (a.cooldown_remaining || 0) - 1)
+      return {
+        ...a,
+        cooldown_remaining: remaining,
+        is_on_cooldown: remaining > 0
+      }
+    })
   })),
   toggleAbilityMenu: () => set((s) => ({ abilityMenuOpen: !s.abilityMenuOpen })),
 
