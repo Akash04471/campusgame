@@ -625,12 +625,22 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
               <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', color: '#06b6d4', background: 'rgba(6,182,212,0.1)', border: '1px solid rgba(6,182,212,0.3)', borderRadius: 4, padding: '2px 8px' }}>STANDARD — 10 MINUTES</span>
             </p>
             <p style={{ fontSize: '0.78rem', color: '#64748b', fontFamily: 'monospace', marginBottom: 12 }}>All investigation sessions run for a fixed 10-minute window.</p>
-            <p className="cu-modal-field-label" style={{ marginTop: 16 }}>MAX PLAYERS — {maxPlayers} {maxPlayers === 1 ? '(SINGLE PLAYER & BOTS)' : ''}</p>
+            <p className="cu-modal-field-label" style={{ marginTop: 16 }}>
+              MAX PLAYERS — {maxPlayers} {maxPlayers === 1 ? '(SOLO: YOU + 3 BOTS)' : maxPlayers < 4 ? `(${maxPlayers} PLAYERS + ${4 - maxPlayers} BOTS)` : '(4 PLAYERS)'}
+            </p>
             <input type="range" min={1} max={6} value={maxPlayers} onChange={e => setMaxPlayers(+e.target.value)}
               style={{ width: '100%', accentColor: '#dc2626' }} />
-            <button className="cu-btn-primary" style={{ marginTop: 20, width: '100%' }} onClick={auth?.token ? createRoom : onPlay} disabled={loading} data-hover>
+            <button className="cu-btn-primary" style={{ marginTop: 20, width: '100%' }}
+              onClick={() => {
+                if (maxPlayers === 1 || !auth?.token) {
+                  onPlay()
+                } else {
+                  createRoom()
+                }
+              }}
+              disabled={loading} data-hover>
               <span className="cu-btn-shine" />
-              {loading ? 'INITIALIZING...' : auth?.token ? 'DEPLOY INTERFACE' : 'PLAY OFFLINE'}
+              {loading ? 'INITIALIZING...' : maxPlayers === 1 ? 'BEGIN SOLO CASE (YOU + 3 BOTS)' : auth?.token ? 'DEPLOY LOBBY INTERFACE' : 'PLAY OFFLINE'}
             </button>
           </div>
         )}
