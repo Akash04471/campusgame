@@ -537,7 +537,7 @@ const STANDARD_GAME_LABEL = '10 MIN · STANDARD'
 
 function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
   const [tab, setTab] = useState('create')
-  const [maxPlayers, setMaxPlayers] = useState(6)
+  const [maxPlayers, setMaxPlayers] = useState(1)
   const [joinCode, setJoinCode] = useState('')
   const [rooms, setRooms] = useState([])
   const [loading, setLoading] = useState(false)
@@ -548,26 +548,34 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
     try { setRooms(await apiFetch('/api/v1/lobby/rooms', {}, auth.token)) } catch {}
   }, [auth])
 
-  useEffect(() => { if (tab === 'browse') fetchRooms() }, [tab])
+  useEffect(() => {
+    if (tab === 'browse') {
+      fetchRooms()
+      const pollInterval = setInterval(fetchRooms, 10000)
+      return () => clearInterval(pollInterval)
+    }
+  }, [tab, fetchRooms])
 
   const createRoom = async () => {
     setError(''); setLoading(true)
     try {
-      const sendMax = Math.max(2, maxPlayers)
       const resRoom = await apiFetch('/api/v1/lobby/create', {
         method: 'POST',
-        body: JSON.stringify({ difficulty: 'standard', max_players: sendMax })
+        body: JSON.stringify({ difficulty: 'standard', max_players: maxPlayers })
       }, auth?.token)
-      const room = { ...resRoom, max_players: maxPlayers }
-      onJoinedRoom(room)
+      onJoinedRoom(resRoom)
     } catch (err) {
+      // Fallback: generate a valid 6-char mock room code
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+      let mockCode = ''
+      for (let i = 0; i < 6; i++) mockCode += chars[Math.floor(Math.random() * chars.length)]
       const mockRoom = {
-        room_code: 'SOLO' + Math.floor(1000 + Math.random() * 9000),
+        room_code: mockCode,
         status: 'waiting',
         difficulty: 'standard',
-        host_id: auth?.user_id || 1,
+        host_id: auth?.userId || 1,
         max_players: maxPlayers,
-        players: [{ player_id: auth?.user_id || 1, username: auth?.username || 'Agent', is_ready: true }]
+        players: [{ player_id: auth?.userId || 1, username: auth?.username || 'Agent', is_ready: true }]
       }
       onJoinedRoom(mockRoom)
     }
@@ -610,9 +618,22 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
               <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', color: '#06b6d4', background: 'rgba(6,182,212,0.1)', border: '1px solid rgba(6,182,212,0.3)', borderRadius: 4, padding: '2px 8px' }}>STANDARD — 10 MINUTES</span>
             </p>
             <p style={{ fontSize: '0.78rem', color: '#64748b', fontFamily: 'monospace', marginBottom: 12 }}>All investigation sessions run for a fixed 10-minute window.</p>
-            <p className="cu-modal-field-label" style={{ marginTop: 16 }}>MAX PLAYERS — {maxPlayers} {maxPlayers === 1 ? '(SINGLE PLAYER & BOTS)' : ''}</p>
-            <input type="range" min={1} max={6} value={maxPlayers} onChange={e => setMaxPlayers(+e.target.value)}
+            <p className="cu-modal-field-label" style={{ marginTop: 16 }}>
+              HUMAN PLAYERS — {maxPlayers}
+              {maxPlayers < 4 && (
+                <span style={{ fontSize: '0.72rem', color: '#a78bfa', marginLeft: 8, fontFamily: 'monospace' }}>
+                  (+{4 - maxPlayers} bot{4 - maxPlayers !== 1 ? 's' : ''} auto-assigned)
+                </span>
+              )}
+            </p>
+            <input type="range" min={1} max={4} value={maxPlayers} onChange={e => setMaxPlayers(+e.target.value)}
               style={{ width: '100%', accentColor: '#dc2626' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: '#475569', fontFamily: 'monospace', marginTop: 4 }}>
+              <span>1 player (3 bots)</span>
+              <span>2 players (2 bots)</span>
+              <span>3 players (1 bot)</span>
+              <span>4 players (0 bots)</span>
+            </div>
             <button className="cu-btn-primary" style={{ marginTop: 20, width: '100%' }} onClick={auth?.token ? createRoom : onPlay} disabled={loading} data-hover>
               <span className="cu-btn-shine" />
               {loading ? 'INITIALIZING...' : auth?.token ? 'DEPLOY INTERFACE' : 'PLAY OFFLINE'}
@@ -624,12 +645,15 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
           <div className="cu-modal-body">
             <p className="cu-modal-field-label">LOBBY CODE</p>
             <input
-              value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase())}
-              placeholder="XXXX" maxLength={8}
-              style={{ width: '100%', padding: '16px', textAlign: 'center', letterSpacing: 6, fontSize: 24, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: '#f1f5f9', fontFamily: 'monospace', boxSizing: 'border-box' }}
+              value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+              placeholder="XXXXXX" maxLength={6}
+              style={{ width: '100%', padding: '16px', textAlign: 'center', letterSpacing: 6, fontSize: 24, background: 'rgba(255,255,255,0.03)', border: `1px solid ${joinCode.length === 6 ? 'rgba(6,182,212,0.5)' : 'rgba(255,255,255,0.1)'}`, borderRadius: 6, color: '#f1f5f9', fontFamily: 'monospace', boxSizing: 'border-box', transition: 'border-color 0.2s' }}
             />
-            <button className="cu-btn-primary" style={{ marginTop: 16, width: '100%', opacity: joinCode.length >= 4 ? 1 : 0.4 }}
-              onClick={() => auth?.token ? joinRoom(joinCode) : onPlay()} disabled={loading || joinCode.length < 4} data-hover>
+            <p style={{ fontSize: '0.72rem', color: '#475569', fontFamily: 'monospace', textAlign: 'center', marginTop: 6 }}>
+              Enter the 6-character room code shared by the host
+            </p>
+            <button className="cu-btn-primary" style={{ marginTop: 12, width: '100%', opacity: joinCode.length === 6 ? 1 : 0.4 }}
+              onClick={() => auth?.token ? joinRoom(joinCode) : onPlay()} disabled={loading || joinCode.length !== 6} data-hover>
               <span className="cu-btn-shine" />
               {loading ? 'CONNECTING...' : 'LINK TO LOBBY'}
             </button>
@@ -640,15 +664,29 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
           <div className="cu-modal-body">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <p className="cu-modal-field-label" style={{ margin: 0 }}>ACTIVE TERMINALS ({rooms.length})</p>
-              <button onClick={fetchRooms} style={{ background: 'none', border: 'none', color: '#06b6d4', cursor: 'pointer', fontSize: 12, fontFamily: 'monospace' }}>↻ REFRESH</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 10, color: '#475569', fontFamily: 'monospace' }}>auto-refresh 10s</span>
+                <button onClick={fetchRooms} style={{ background: 'none', border: 'none', color: '#06b6d4', cursor: 'pointer', fontSize: 12, fontFamily: 'monospace' }}>↻ REFRESH</button>
+              </div>
             </div>
-            {rooms.length === 0
-              ? <p style={{ color: '#475569', fontFamily: 'monospace', fontSize: 12, textAlign: 'center', padding: '20px 0' }}>No active terminals found.</p>
+            {!auth?.token
+              ? <p style={{ color: '#f59e0b', fontFamily: 'monospace', fontSize: 12, textAlign: 'center', padding: '20px 0' }}>⚠️ Login required to browse rooms.</p>
+              : rooms.length === 0
+              ? <p style={{ color: '#475569', fontFamily: 'monospace', fontSize: 12, textAlign: 'center', padding: '20px 0' }}>No active terminals found. Create a room to get started!</p>
               : rooms.map(r => (
                 <div key={r.room_code} className="cu-room-row">
                   <code className="cu-room-code">{r.room_code}</code>
-                  <span className="cu-room-meta">{r.player_count}/{r.max_players} · {STANDARD_GAME_LABEL}</span>
-                  <button className="cu-room-join-btn" onClick={() => joinRoom(r.room_code)} data-hover>CONNECT</button>
+                  <span className="cu-room-meta">
+                    {(r.players?.length ?? r.player_count ?? 0)}/{r.max_players} players · {STANDARD_GAME_LABEL}
+                  </span>
+                  <button
+                    className="cu-room-join-btn"
+                    onClick={() => joinRoom(r.room_code)}
+                    disabled={loading || (r.players?.length ?? 0) >= r.max_players}
+                    data-hover
+                  >
+                    {(r.players?.length ?? 0) >= r.max_players ? 'FULL' : 'CONNECT'}
+                  </button>
                 </div>
               ))}
           </div>
@@ -672,10 +710,11 @@ function WaitingRoom({ auth, room: init, onGameStarted, onClose }) {
   const myId = auth?.userId || auth?.user_id || auth?.id || 1
   const players = Array.isArray(room.players) ? room.players : Object.values(room.players || {})
   const myPlayer = players.find(p => String(p.player_id || p.id) === String(myId))
-  const isHost = String(room.host_id) === String(myId) || String(room.room_code).startsWith('SOLO') || players.length === 1
+  // isHost: either your id matches host_id, OR the room code was locally-generated (no auth)
+  const isHost = String(room.host_id) === String(myId) || !auth?.token
 
   useEffect(() => {
-    if (!auth?.token || String(room.room_code).startsWith('SOLO')) return
+    if (!auth?.token) return
     const wsUrl = `${getWsProtocol()}://${getBackendHost()}/ws/lobby/${room.room_code}/${myId}?token=${encodeURIComponent(auth.token)}`
     const ws = new WebSocket(wsUrl)
     wsRef.current = ws
@@ -683,9 +722,10 @@ function WaitingRoom({ auth, room: init, onGameStarted, onClose }) {
       try {
         const { type, payload } = JSON.parse(e.data)
         if (type === 'LOBBY_STATE' || type === 'LOBBY_STATE_UPDATE') setRoom(payload)
-        if (type === 'ROLE_REVEAL') onGameStarted(room.room_code, myId, auth.username)
+        if (type === 'ROLE_REVEAL' || type === 'GAME_STARTED') onGameStarted(room.room_code, myId, auth.username)
       } catch {}
     }
+    ws.onerror = () => console.warn('[Lobby WS] Connection error')
     return () => ws.close()
   }, [auth, room.room_code, myId, onGameStarted])
 
@@ -736,20 +776,34 @@ function WaitingRoom({ auth, room: init, onGameStarted, onClose }) {
               </span>
             </div>
           ))}
-          {Array.from({ length: Math.max(0, (room.max_players || 6) - players.length) }).map((_, i) => (
+          {/* Empty human slots waiting to be filled */}
+          {Array.from({ length: Math.max(0, (room.max_players || 1) - players.length) }).map((_, i) => (
             <div key={`e${i}`} className="cu-waiting-player cu-waiting-empty">
               <span>— Awaiting agent connection...</span>
+            </div>
+          ))}
+          {/* Bot slots that will be auto-assigned on game start */}
+          {room.max_players < 4 && Array.from({ length: 4 - (room.max_players || 1) }).map((_, i) => (
+            <div key={`bot${i}`} className="cu-waiting-player" style={{ opacity: 0.4, borderColor: 'rgba(167,139,250,0.2)' }}>
+              <div className="cu-waiting-avatar" style={{ background: '#6b21a8' }}>🤖</div>
+              <span className="cu-waiting-name" style={{ color: '#a78bfa' }}>Bot Agent (auto-assigned)</span>
+              <span className="cu-waiting-status cu-ready" style={{ color: '#a78bfa' }}>✓ AUTO</span>
             </div>
           ))}
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 20 }}>
           {(() => {
-            const targetCount = room.max_players || 4
+            // targetCount = number of HUMAN players needed before host can start
+            const targetCount = room.max_players || 1
             const currentCount = players.length
             const hasJoinedTarget = currentCount >= targetCount
-            const allNonHostReady = players.filter(p => String(p.player_id || p.id) !== String(room.host_id)).every(p => p.is_ready)
+            // All non-host players must be ready (or there are no non-host players)
+            const nonHostPlayers = players.filter(p => String(p.player_id || p.id) !== String(room.host_id))
+            const allNonHostReady = nonHostPlayers.length === 0 || nonHostPlayers.every(p => p.is_ready)
             const canStart = hasJoinedTarget && allNonHostReady
+            // How many bots will auto-fill
+            const botCount = Math.max(0, 4 - targetCount)
 
             return isHost ? (
               <>
@@ -774,6 +828,8 @@ function WaitingRoom({ auth, room: init, onGameStarted, onClose }) {
                     ? `⏳ WAITING FOR PLAYERS TO JOIN (${currentCount}/${targetCount})`
                     : !allNonHostReady
                     ? `⏳ WAITING FOR ALL PLAYERS TO BE READY`
+                    : botCount > 0
+                    ? `▶ INITIATE CASE — ${currentCount} human${currentCount !== 1 ? 's' : ''} + ${botCount} bot${botCount !== 1 ? 's' : ''}`
                     : `▶ INITIATE CASE (${currentCount}/${targetCount})`}
                 </button>
                 {!hasJoinedTarget ? (
