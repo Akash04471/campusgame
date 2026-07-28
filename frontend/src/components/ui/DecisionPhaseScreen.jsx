@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import useGameStore from '../../store/gameStore'
+import useDecisionPhaseAudio from '../../utils/useDecisionPhaseAudio'
+import MuteToggleButton from './MuteToggleButton'
+
 
 /**
  * DecisionPhaseScreen
@@ -21,6 +24,9 @@ export default function DecisionPhaseScreen() {
   const setDetectiveChoice = useGameStore((s) => s.setDetectiveChoice)
   const setInvestigatorChoice = useGameStore((s) => s.setInvestigatorChoice)
   const setPlayerSubmitted = useGameStore((s) => s.setPlayerSubmitted)
+
+  // Initialize Audio hook for Decision Phase BGM & SFX
+  const { playSelectSfx, playSubmitSfx } = useDecisionPhaseAudio(gamePhase)
 
   // Local selection state before submitting
   const [selectedCandidate, setSelectedCandidate] = useState(null)
@@ -67,10 +73,16 @@ export default function DecisionPhaseScreen() {
 
   if (gamePhase !== 'decision' && gamePhase !== 'accusation') return null
 
+  const handleSelectCandidate = (candidateId) => {
+    playSelectSfx()
+    setSelectedCandidate(candidateId)
+  }
+
   // Handler for Detective submission
   const handleSubmitDetective = () => {
     if (!selectedCandidate || isSubmitted) return
 
+    playSubmitSfx()
     setDetectiveChoice(selectedCandidate)
     setPlayerSubmitted('DETECTIVE', pidStr)
 
@@ -88,6 +100,7 @@ export default function DecisionPhaseScreen() {
   const handleSubmitInvestigator = () => {
     if (!selectedCandidate || isSubmitted) return
 
+    playSubmitSfx()
     setInvestigatorChoice(pidStr, selectedCandidate)
     setPlayerSubmitted('INVESTIGATOR', pidStr)
 
@@ -105,7 +118,7 @@ export default function DecisionPhaseScreen() {
     <div className="accusation-overlay" id="decision-phase-screen">
       <div className="accusation-panel" style={{ maxWidth: '650px', width: '90%' }}>
 
-        {/* Header section with phase badge and timer */}
+        {/* Header section with phase badge, timer and mute toggle */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <span style={{
             background: 'rgba(239, 68, 68, 0.2)',
@@ -118,10 +131,14 @@ export default function DecisionPhaseScreen() {
           }}>
             DECISION PHASE
           </span>
-          <span style={{ color: '#94a3b8', fontSize: '0.9rem', fontFamily: 'monospace' }}>
-            ⏱️ {timerSeconds}s remaining
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <MuteToggleButton />
+            <span style={{ color: '#94a3b8', fontSize: '0.9rem', fontFamily: 'monospace' }}>
+              ⏱️ {timerSeconds}s remaining
+            </span>
+          </div>
         </div>
+
 
         {/* ── 1. DETECTIVE VIEW ── */}
         {isDetective && !isSubmitted && (
@@ -142,7 +159,7 @@ export default function DecisionPhaseScreen() {
                       key={player.id}
                       type="button"
                       className={`player-select-btn ${selectedCandidate === player.id ? 'selected conspirator' : ''}`}
-                      onClick={() => setSelectedCandidate(player.id)}
+                      onClick={() => handleSelectCandidate(player.id)}
                       style={{
                         padding: '12px 16px',
                         borderRadius: '8px',
@@ -204,7 +221,7 @@ export default function DecisionPhaseScreen() {
                       key={player.id}
                       type="button"
                       className={`player-select-btn ${selectedCandidate === player.id ? 'selected mastermind' : ''}`}
-                      onClick={() => setSelectedCandidate(player.id)}
+                      onClick={() => handleSelectCandidate(player.id)}
                       style={{
                         padding: '12px 16px',
                         borderRadius: '8px',

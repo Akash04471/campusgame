@@ -7,6 +7,53 @@ from app.game.task_manager import task_manager
 from app.game.evidence_manager import evidence_manager
 
 
+def resolve_investigator_votes(investigator_choices: Dict[str, str]) -> dict:
+    """
+    Server-side authoritative majority calculation for Investigator guesses.
+    investigator_choices = { [investigatorId]: targetPlayerId }
+    
+    A strict majority is defined as strictly more than half of total Investigators:
+    majorityThreshold = floor(totalInvestigators / 2) + 1
+    """
+    if not investigator_choices:
+        return {
+            'success': False,
+            'final_guess': None,
+            'vote_counts': {},
+            'fail_message': "The Investigators could not reach a majority decision."
+        }
+
+    vote_counts = {}
+    total_investigators = len(investigator_choices)
+
+    for target_id in investigator_choices.values():
+        if target_id:
+            vote_counts[target_id] = vote_counts.get(target_id, 0) + 1
+
+    majority_threshold = (total_investigators // 2) + 1
+
+    majority_target = None
+    for target_id, count in vote_counts.items():
+        if count >= majority_threshold:
+            majority_target = target_id
+            break
+
+    if majority_target:
+        return {
+            'success': True,
+            'final_guess': majority_target,
+            'vote_counts': vote_counts,
+            'fail_message': None
+        }
+    else:
+        return {
+            'success': False,
+            'final_guess': None,
+            'vote_counts': vote_counts,
+            'fail_message': "The Investigators could not reach a majority decision."
+        }
+
+
 def resolve_game(
     room_code: str,
     assignments: Dict[str, str],
@@ -16,24 +63,53 @@ def resolve_game(
     player_names: Dict[str, str],
     session_db_id,
     db: Session,
+    investigator_choices: Optional[Dict[str, str]] = None,
 ) -> dict:
     """
     Determines the winner, persists stats to DB, returns full result payload.
-    
-    accusation = {
-        'mastermind_accusation': player_id,
-        'conspirator_accusation': player_id,
-    }
     """
-    correct_accusation = False
-    winner_faction = 'VILLAINS'
-
+    detective_correct = False
     if accusation:
-        correct_mm = accusation.get('mastermind_accusation') == mastermind_id if mastermind_id else True
-        correct_co = accusation.get('conspirator_accusation') == conspirator_id if conspirator_id else True
-        correct_accusation = correct_mm and correct_co
-        if correct_accusation:
-            winner_faction = 'INVESTIGATORS'
+        detective_guess = accusation.get('conspirator_accusation')
+        detective_correct = (detective_guess == conspirator_id) if conspirator_id else True
+    else:
+        detective_correct = True
+
+    # Calculate Investigator majority resolution
+    if investigator_choices is not None:
+        vote_res = resolve_investigator_votes(investigator_choices)
+        investigators_correct = False
+        if vote_res['success'] and vote_res['final_guess']:
+            investigators_correct = (vote_res['final_guess'] == mastermind_id) if mastermind_id else True
+
+        investigator_vote_result = {
+            'success': vote_res['success'],
+            'final_guess': vote_res['final_guess'],
+            'vote_counts': vote_res['vote_counts'],
+            'investigators_correct': investigators_correct,
+            'fail_message': vote_res['fail_message']
+        }
+    elif accusation and accusation.get('mastermind_accusation'):
+        mm_guess = accusation.get('mastermind_accusation')
+        inv_correct = (mm_guess == mastermind_id) if mastermind_id else True
+        investigator_vote_result = {
+            'success': True,
+            'final_guess': mm_guess,
+            'vote_counts': {mm_guess: 1},
+            'investigators_correct': inv_correct,
+            'fail_message': None
+        }
+    else:
+        investigator_vote_result = {
+            'success': False,
+            'final_guess': None,
+            'vote_counts': {},
+            'investigators_correct': False,
+            'fail_message': "The Investigators could not reach a majority decision."
+        }
+
+    correct_accusation = detective_correct and investigator_vote_result['investigators_correct']
+    winner_faction = 'INVESTIGATORS' if correct_accusation else 'VILLAINS'
 
     # Determine win status per player
     investigator_roles = {'DETECTIVE', 'INVESTIGATOR'}
@@ -87,7 +163,13 @@ def resolve_game(
         'correct_accusation': correct_accusation,
         'mastermind_id': mastermind_id,
         'conspirator_id': conspirator_id,
+        'actualMastermind': mastermind_id,
+        'actualConspirator': conspirator_id,
+        'detectiveCorrect': detective_correct,
+        'investigatorVoteResult': investigator_vote_result,
+        'failMessage': investigator_vote_result.get('fail_message'),
         'player_stats': player_results,
         'all_roles': assignments,
         'player_names': player_names,
     }
+

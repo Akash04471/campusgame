@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import useGameStore from '../../store/gameStore'
+import MuteToggleButton from './MuteToggleButton'
+
 
 const ROLE_ICONS = {
   DETECTIVE: '🔍',
@@ -80,16 +82,26 @@ export default function ResultsScreen() {
     player_stats = [],
     all_roles = {},
     player_names = {},
+    investigatorVoteResult,
+    failMessage,
   } = gameResult
 
   const investigatorsWon = winner_faction === 'INVESTIGATORS'
   const sorted = [...player_stats].sort((a, b) => b.points_earned - a.points_earned)
 
+  const invVoteSuccess = investigatorVoteResult?.success ?? true
+  const invVoteMessage = failMessage || investigatorVoteResult?.fail_message || "The Investigators could not reach a majority decision."
+  const finalGuessId = investigatorVoteResult?.final_guess
+  const finalGuessName = finalGuessId ? (player_names[finalGuessId] || `Agent #${finalGuessId}`) : 'None'
+
   return (
     <div className="results-overlay" id="results-screen">
       <ConfettiCanvas winner={winner_faction} />
 
-      <div className="results-panel">
+      <div className="results-panel" style={{ position: 'relative' }}>
+        <div style={{ position: 'absolute', top: '15px', right: '15px', zIndex: 10 }}>
+          <MuteToggleButton />
+        </div>
         {/* Banner */}
         <div className={`results-banner ${investigatorsWon ? 'investigators-win' : 'villains-win'}`}>
           <span className="results-faction-icon">
@@ -102,12 +114,55 @@ export default function ResultsScreen() {
             <p className="results-subtitle">
               {correct_accusation
                 ? 'The criminal pair was correctly identified.'
-                : investigatorsWon
-                  ? 'Time ran out but evidence was overwhelming.'
-                  : 'The accusation was wrong — the criminals walk free.'}
+                : !invVoteSuccess
+                  ? invVoteMessage
+                  : investigatorsWon
+                    ? 'Time ran out but evidence was overwhelming.'
+                    : 'The accusation was wrong — the criminals walk free.'}
             </p>
           </div>
         </div>
+
+        {/* ── Investigator Majority Vote Result Banner ── */}
+        {investigatorVoteResult && (
+          <div style={{
+            margin: '16px 0',
+            padding: '14px 18px',
+            borderRadius: '10px',
+            background: invVoteSuccess ? 'rgba(59, 130, 246, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+            border: invVoteSuccess ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)',
+            color: '#f3f4f6'
+          }}>
+            {!invVoteSuccess ? (
+              <div style={{ textAlign: 'center' }}>
+                <h4 style={{ color: '#ef4444', margin: '0 0 6px 0', fontFamily: 'Orbitron, sans-serif', fontSize: '1.05rem' }}>
+                  ⚠️ MAJORITY VOTE FAILED
+                </h4>
+                <p style={{ margin: 0, color: '#f87171', fontFamily: 'monospace', fontWeight: 'bold' }}>
+                  "{invVoteMessage}"
+                </p>
+                <p style={{ margin: '6px 0 0 0', fontSize: '0.85rem', color: '#94a3b8' }}>
+                  Votes were split or tied without a strict majority. Decision automatically marked INCORRECT.
+                </p>
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center' }}>
+                <h4 style={{ color: '#60a5fa', margin: '0 0 6px 0', fontFamily: 'Orbitron, sans-serif', fontSize: '1.05rem' }}>
+                  🧩 INVESTIGATOR MAJORITY CONSENSUS
+                </h4>
+                <p style={{ margin: 0, fontSize: '0.95rem', color: '#e2e8f0' }}>
+                  Majority Mastermind Guess: <strong>{finalGuessName}</strong>
+                </p>
+                {investigatorVoteResult.voteCounts && (
+                  <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: '#94a3b8', fontFamily: 'monospace' }}>
+                    Votes count: {Object.entries(investigatorVoteResult.voteCounts).map(([pid, cnt]) => `${player_names[pid] || pid}: ${cnt}`).join(', ')}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
 
         {/* Role reveal section */}
         <div className="results-roles-section">

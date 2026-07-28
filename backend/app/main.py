@@ -1262,11 +1262,7 @@ async def websocket_game_endpoint(websocket: WebSocket, room_code: str, player_i
                 investigators_done = active_investigators.issubset(gs.decision_votes['submitted_investigators'])
 
                 if detective_done and investigators_done:
-                    inv_choices = list(gs.decision_votes['investigator_choices'].values())
-                    chosen_mm = mastermind_choice or (inv_choices[0] if inv_choices else None)
-
                     accusation = {
-                        "mastermind_accusation": chosen_mm,
                         "conspirator_accusation": gs.decision_votes['detective_choice'],
                         "voter_role": player_role,
                         "voter_id": pid_str,
@@ -1283,10 +1279,12 @@ async def websocket_game_endpoint(websocket: WebSocket, room_code: str, player_i
                             player_names=player_names,
                             session_db_id=getattr(gs, 'db_session_id', None),
                             db=db,
+                            investigator_choices=gs.decision_votes['investigator_choices'],
                         )
                         db.commit()
                     finally:
                         db.close()
+
                     gs.is_active = False
                     room.status = "finished"
                     await broadcast_to_room(room_code, {
