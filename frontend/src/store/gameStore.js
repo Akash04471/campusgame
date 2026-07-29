@@ -33,8 +33,8 @@ const useGameStore = create((set, get) => ({
 
   // ── Game Session ──
   gamePhase: 'loading',   // loading | role_reveal | exploration | meeting | accusation | results
-  timeRemaining: 10 * 60,
-  timerSeconds: 10 * 60,
+  timeRemaining: 5 * 60,
+  timerSeconds: 5 * 60,
   difficulty: 'standard',
   role: null,
   partnerInfo: null,      // { partner_id, partner_name, partner_role } for villains

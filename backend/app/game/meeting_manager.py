@@ -63,8 +63,8 @@ class MeetingManager:
         return False
 
     def check_midpoint(self, room_code: str, elapsed_seconds: int) -> bool:
-        """Returns True if midpoint meeting should trigger (10 min elapsed, not yet triggered)."""
-        if elapsed_seconds >= 600 and not self.midpoint_triggered.get(room_code, False):
+        """Returns True if midpoint meeting should trigger (2.5 min / 150s elapsed, not yet triggered)."""
+        if elapsed_seconds >= 150 and not self.midpoint_triggered.get(room_code, False):
             self.midpoint_triggered[room_code] = True
             return True
         return False

@@ -135,7 +135,7 @@ function useGameWebSocket(roomCode, playerId) {
         switch (type) {
           case 'ROLE_REVEAL':
             setRole(payload.role)
-            setTimerSeconds(Math.min(payload.timer_seconds || 600, 600))  // cap at 10 min
+            setTimerSeconds(Math.min(payload.timer_seconds || 300, 300))  // cap at 5 min
             if (payload.partner_id) {
               setPartnerInfo({ partner_id: payload.partner_id, partner_name: payload.partner_name, partner_role: payload.partner_role })
             } else {
@@ -143,13 +143,16 @@ function useGameWebSocket(roomCode, playerId) {
             }
             setGamePhase('role_reveal')
             break
-          case 'GAME_STARTED': setNpcs(payload.npcs || []); break
+          case 'GAME_STARTED':
+            setNpcs(payload.npcs || [])
+            if (typeof payload.timer_seconds === 'number') setTimerSeconds(Math.min(payload.timer_seconds, 300))
+            break
           case 'GAME_STATE':
             setTasks(payload.tasks || [])
             setAbilities(payload.abilities || [])
             setWorldEvidence(payload.evidence || [])
             if (payload.role) setRole(payload.role)
-            if (typeof payload.time_remaining === 'number') setTimerSeconds(Math.min(payload.time_remaining, 600))
+            if (typeof payload.time_remaining === 'number') setTimerSeconds(Math.min(payload.time_remaining, 300))
             if (payload.game_phase) {
               const currentPhase = useGameStore.getState().gamePhase
               if (currentPhase !== 'role_reveal' || ['meeting', 'accusation', 'results'].includes(payload.game_phase)) {
@@ -174,7 +177,7 @@ function useGameWebSocket(roomCode, playerId) {
             }
             break
           case 'MATCH_TIMER_UPDATE':
-            if (typeof payload.time_remaining === 'number') setTimerSeconds(Math.min(payload.time_remaining, 600))
+            if (typeof payload.time_remaining === 'number') setTimerSeconds(Math.min(payload.time_remaining, 300))
             break
           case 'MEETING_TIMER_UPDATE':
             if (typeof payload.time_remaining === 'number') setMeetingTimeRemaining(payload.time_remaining)

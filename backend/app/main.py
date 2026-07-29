@@ -205,7 +205,7 @@ async def run_authoritative_game_loop(room_code: str):
             try:
                 # 1. Authoritative Elapsed time check
                 elapsed = int(_time.time() - gs.started_at)
-                timer_limit = gs.modifiers.get('timer_seconds', 600)
+                timer_limit = gs.modifiers.get('timer_seconds', 300)
                 time_remaining = max(0, timer_limit - elapsed)
 
                 # Periodic health logging every 30 seconds
@@ -244,7 +244,7 @@ async def run_authoritative_game_loop(room_code: str):
                             "payload": {"resumed": True}
                         })
 
-                # 3. Check midpoint meeting (runs at 10 minutes / 600s elapsed)
+                # 3. Check midpoint meeting (runs at 2.5 minutes / 150s elapsed)
                 if meeting_manager.check_midpoint(room_code, elapsed):
                     new_mtg = meeting_manager.start_meeting(room_code, "SYSTEM")
                     if new_mtg:
@@ -658,6 +658,7 @@ async def websocket_lobby_endpoint(websocket: WebSocket, room_code: str, player_
                             **reveal,
                             "partner_name": partner_name,
                             "timer_seconds": result['modifiers']['timer_seconds'],
+                            "time_remaining": result['modifiers']['timer_seconds'],
                             "difficulty": room.difficulty,
                         }
                     })
@@ -668,6 +669,7 @@ async def websocket_lobby_endpoint(websocket: WebSocket, room_code: str, player_
                     "payload": {
                         "npcs": npc_manager.get_room_npcs(room_code),
                         "timer_seconds": result['modifiers']['timer_seconds'],
+                        "time_remaining": result['modifiers']['timer_seconds'],
                     }
                 })
 
@@ -687,6 +689,8 @@ async def websocket_lobby_endpoint(websocket: WebSocket, room_code: str, player_
                             "abilities": player_abilities,
                             "evidence": all_evidence_public,
                             "role": role2,
+                            "timer_seconds": result['modifiers']['timer_seconds'],
+                            "time_remaining": result['modifiers']['timer_seconds'],
                         }
                     })
                 
@@ -785,7 +789,7 @@ async def websocket_game_endpoint(websocket: WebSocket, room_code: str, player_i
             "payload": {
                 **reveal,
                 "partner_name": partner_name,
-                "timer_seconds": gs.modifiers.get('timer_seconds', 600),
+                "timer_seconds": gs.modifiers.get('timer_seconds', 300),
                 "difficulty": room.difficulty,
             }
         })
@@ -798,7 +802,7 @@ async def websocket_game_endpoint(websocket: WebSocket, room_code: str, player_i
             if not e.is_destroyed
         ]
         # Calculate synchronized authoritative timer state
-        timer_limit = gs.modifiers.get('timer_seconds', 600)
+        timer_limit = gs.modifiers.get('timer_seconds', 300)
         elapsed = int(_time.time() - gs.started_at)
         time_remaining = max(0, timer_limit - elapsed)
         mtg = meeting_manager.get_active_meeting(room_code)

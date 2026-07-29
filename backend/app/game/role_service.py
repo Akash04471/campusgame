@@ -18,7 +18,7 @@ STANDARD_MODIFIERS = {
     'mastermind_sabotage_cooldown': 120,
     'conspirator_destroy_rate': 2,
     'fake_evidence_grace_period': 0,
-    'timer_seconds': 10 * 60,          # 600 s — fixed 10-minute investigation window
+    'timer_seconds': 5 * 60,           # 300 s — fixed 5-minute investigation window
     'detection_chance_fabricated': 0.20,
 }
 
