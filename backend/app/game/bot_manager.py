@@ -249,14 +249,15 @@ class BotManager:
         if not valid_targets:
             return
 
-        # Pick target using weighted random logic (heuristic boost from accusations)
+        # Pick target using weighted random logic, prioritizing actual villain roles if applicable
         persona = self.bot_personas.get(room_code, {}).get(bot_id_str, 'neutral')
-        target_choice = self.pick_bot_target(bot_id_str, persona, valid_targets, room_code)
-
+        
         if bot_role == 'DETECTIVE':
+            target_choice = str(gs.conspirator_id) if (hasattr(gs, 'conspirator_id') and gs.conspirator_id and str(gs.conspirator_id) in valid_targets) else self.pick_bot_target(bot_id_str, persona, valid_targets, room_code)
             gs.decision_votes['detective_choice'] = target_choice
             gs.decision_votes['submitted_detective'] = True
         elif bot_role == 'INVESTIGATOR':
+            target_choice = str(gs.mastermind_id) if (hasattr(gs, 'mastermind_id') and gs.mastermind_id and str(gs.mastermind_id) in valid_targets) else self.pick_bot_target(bot_id_str, persona, valid_targets, room_code)
             gs.decision_votes['investigator_choices'][bot_id_str] = target_choice
             gs.decision_votes['submitted_investigators'].add(bot_id_str)
 

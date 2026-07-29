@@ -125,25 +125,54 @@ export default function AbilityMenu() {
     switch (ability.ability_id) {
       case 'CCTV_ANALYSIS': {
         const areaName = currentArea || 'Security Office'
+        const state = useGameStore.getState()
+        const otherP = state.otherPlayers || {}
+        const playerPos = state.playerPos || [0, 0, 0]
+        const pid = state.playerId || '1'
+
+        // Gather all live players/bots and their current campus coordinates
+        const allEntities = [
+          { id: String(pid), name: 'You', pos: playerPos },
+          ...Object.entries(otherP).map(([id, data]) => ({
+            id: String(id),
+            name: data.username || `Agent #${id}`,
+            pos: Array.isArray(data.position) ? data.position : [data.position?.x || 0, 0, data.position?.z || 0]
+          }))
+        ]
+
+        // Create anonymized movement replay entries with real positions
+        const movement_replay = []
+        const generated_evidence = []
+
+        allEntities.forEach((ent, idx) => {
+          const colorIndex = (idx % 6) + 1
+          const wx = ent.pos[0] || 0
+          const wz = ent.pos[2] || 0
+
+          // Create multiple replay steps around the player's position
+          movement_replay.push(
+            { color_index: colorIndex, position: { x: wx - 2, z: wz - 2 }, area: areaName },
+            { color_index: colorIndex, position: { x: wx, z: wz }, area: areaName },
+            { color_index: colorIndex, position: { x: wx + 1, z: wz + 1 }, area: areaName }
+          )
+
+          generated_evidence.push({
+            evidence_id: 'cctv_ev_' + idx + '_' + Date.now(),
+            evidence_type: 'CCTV',
+            area: areaName,
+            color_index: colorIndex,
+            description: `CCTV camera feed detected movement of entity (Color #${colorIndex}) at coordinates (${Math.round(wx)}, ${Math.round(wz)}) in ${areaName}.`,
+            reliability_score: 0.88,
+          })
+        })
+
         setCctvReport({
           area: areaName,
           time_window_minutes: 5,
-          movement_replay: [
-            { color_index: 1, waypoints: [{ x: -5, z: -10 }, { x: 0, z: -5 }, { x: 5, z: 0 }] },
-            { color_index: 2, waypoints: [{ x: 10, z: 8 }, { x: 5, z: 2 }, { x: -2, z: -5 }] },
-            { color_index: 3, waypoints: [{ x: -12, z: 10 }, { x: -5, z: 5 }, { x: 0, z: 0 }] },
-          ],
-          generated_evidence: [
-            {
-              evidence_id: 'cctv_ev_' + Date.now(),
-              evidence_type: 'DIGITAL',
-              area: areaName,
-              description: `CCTV feed captured suspect movement pattern in ${areaName} at 22:14.`,
-              reliability_score: 0.88,
-            }
-          ]
+          movement_replay,
+          generated_evidence,
         })
-        showToast(`📷 CCTV Analysis generated report for ${areaName}.`)
+        showToast(`📷 CCTV Analysis generated live surveillance report for ${areaName}.`)
         break
       }
       case 'DIGITAL_ANALYSIS': {
