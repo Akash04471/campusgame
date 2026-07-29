@@ -106,12 +106,9 @@ export default function DecisionPhaseScreen() {
       const soloConspiratorId = '9003'
       const soloMastermindId  = '9002'
 
-      // Bots pick a random non-self target (from the 4 players)
-      const allIds = [String(state.playerId || '1'), '9001', '9002', '9003']
-      const randTarget = (excludeId) => allIds.filter(id => id !== excludeId)[Math.floor(Math.random() * (allIds.length - 1))]
-
-      const detectiveGuess   = state.decisionPhase?.detectiveChoice   || (myRole === 'DETECTIVE' ? null : randTarget(String(state.playerId || '1')))
-      const investigatorGuess = state.decisionPhase?.investigatorChoices?.['9001'] || randTarget('9001')
+      // Bots target the true villain roles so resolution depends on the human player's choice
+      const detectiveGuess   = state.decisionPhase?.detectiveChoice   || (myRole === 'DETECTIVE' ? null : soloConspiratorId)
+      const investigatorGuess = state.decisionPhase?.investigatorChoices?.['9001'] || (myRole === 'INVESTIGATOR' ? null : soloMastermindId)
 
       const detectiveCorrect   = String(detectiveGuess) === String(soloConspiratorId)
       const investigatorCorrect = String(investigatorGuess) === String(soloMastermindId)
