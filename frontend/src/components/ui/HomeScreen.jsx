@@ -811,7 +811,7 @@ export default function HomeScreen({ onPlay }) {
   const setPlayerName = useGameStore(s => s.setPlayerName)
   const setAuthToken  = useGameStore(s => s.setAuthToken)
 
-  const [gateVisible, setGateVisible] = useState(true)
+  const [gateVisible, setGateVisible] = useState(false)
   const [flow, setFlow] = useState('landing') // landing | auth | lobby | waiting
   const [auth, setAuth] = useState(null)
   const [room, setRoom] = useState(null)
