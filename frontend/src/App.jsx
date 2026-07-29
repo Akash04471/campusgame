@@ -303,7 +303,7 @@ export default function App() {
   // ── Local screen machine: LOADING → SPLASH → CINEMATIC → GAME
   // This mirrors the SCREENS enum in gameStore but lives locally to avoid
   // re-rendering the entire tree on every store update.
-  const [screen, setScreen] = useState('loading')  // loading | splash | cinematic | game
+  const [screen, setScreen] = useState('cinematic')  // cinematic | game
 
   const gamePhase        = useGameStore((s) => s.gamePhase)
   const setGamePhase     = useGameStore((s) => s.setGamePhase)

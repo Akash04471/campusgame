@@ -18,7 +18,7 @@ export const SCREENS = {
 
 const useGameStore = create((set, get) => ({
   // ── Screen State ──
-  currentScreen:    SCREENS.LOADING,   // starts at LOADING on every page load
+  currentScreen:    SCREENS.CINEMATIC,   // starts directly at CINEMATIC / HomeScreen on load
   hasSeenCinematic: false,             // session-level flag; resets on refresh
 
   // ── Player State ──

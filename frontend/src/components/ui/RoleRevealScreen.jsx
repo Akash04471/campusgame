@@ -1,14 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { Stars } from '@react-three/drei'
+import { Stars, Html } from '@react-three/drei'
 import * as THREE from 'three'
 import useGameStore from '../../store/gameStore'
 import audioManager from '../../utils/audioManager'
 import { StudentBody, ROLE_OUTFIT } from '../game/Player'
 
-
 /* ─────────────────────────────────────────────
-   ROLE CONFIGS & MISSION QUOTES
+   ROLE CONFIGS
    ───────────────────────────────────────────── */
 const ROLE_CONFIGS = {
   DETECTIVE: {
@@ -17,14 +16,7 @@ const ROLE_CONFIGS = {
     icon: '🔍',
     title: 'DETECTIVE',
     tagline: 'DIGITAL FORENSICS & INVESTIGATION',
-    quote: '"Every clue tells a story. Find the truth before time runs out."',
-    description: 'You lead the digital forensics investigation. Track down security logs, piece together evidence, and pinpoint the conspirators.',
     bgStyle: 'radial-gradient(circle at center, rgba(6,182,212,0.06) 0%, #030712 100%)',
-    abilities: [
-      { name: 'CCTV Analysis', icon: '📹', desc: 'Replay security footage feeds' },
-      { name: 'Digital Recovery', icon: '💻', desc: 'Restore redacted logs' },
-      { name: 'Evidence Board', icon: '🔗', desc: 'Link conflicting testimonies' }
-    ]
   },
   INVESTIGATOR: {
     color: '#10b981',
@@ -32,14 +24,7 @@ const ROLE_CONFIGS = {
     icon: '🧩',
     title: 'INVESTIGATOR',
     tagline: 'TACTICAL OBSERVATION & EXPLORATION',
-    quote: '"Observe carefully. Every movement could be a clue."',
-    description: 'You are the eyes and ears on the ground. Complete tasks, secure crime scenes, and file critical field reports.',
     bgStyle: 'radial-gradient(circle at center, rgba(16,185,129,0.06) 0%, #022c22 100%)',
-    abilities: [
-      { name: 'Witness Interview', icon: '🗣️', desc: 'Collect local alibis' },
-      { name: 'Field Survey', icon: '✅', desc: 'Secure location nodes' },
-      { name: 'Evidence Report', icon: '📝', desc: 'File reports to HQ' }
-    ]
   },
   CONSPIRATOR: {
     color: '#f97316',
@@ -47,14 +32,7 @@ const ROLE_CONFIGS = {
     icon: '🔪',
     title: 'CONSPIRATOR',
     tagline: 'SABOTAGE & DECEPTIVE OPERATIONS',
-    quote: '"Leave no trace. Trust no one except your partner."',
-    description: 'You operate from the shadows. Destroy key files, create fake alibis, and disable surveillance hubs.',
     bgStyle: 'radial-gradient(circle at center, rgba(249,115,22,0.06) 0%, #1c0a00 100%)',
-    abilities: [
-      { name: 'Data Sabotage', icon: '🔥', desc: 'Purge collected evidence' },
-      { name: 'Lockdown Hub', icon: '🛡️', desc: 'Block node access points' },
-      { name: 'Fabricate Records', icon: '📋', desc: 'Fake testimony logs' }
-    ]
   },
   MASTERMIND: {
     color: '#ef4444',
@@ -62,14 +40,7 @@ const ROLE_CONFIGS = {
     icon: '🧠',
     title: 'MASTERMIND',
     tagline: 'STRATEGIC DECEPTION & MANIPULATION',
-    quote: '"The greatest weapon is not force. It is manipulation."',
-    description: 'You coordinate the conspiracy. Alter evidence boards, manipulate testimonies, and plant false trails.',
     bgStyle: 'radial-gradient(circle at center, rgba(239,68,68,0.06) 0%, #0f0202 100%)',
-    abilities: [
-      { name: 'Forge Testimony', icon: '🧪', desc: 'Alter witness dialog' },
-      { name: 'Frame Suspect', icon: '🎭', desc: 'Pin suspicion on clean players' },
-      { name: 'Trigger Alarm', icon: '🔔', desc: 'Call an emergency meeting' }
-    ]
   }
 }
 
@@ -84,33 +55,25 @@ function playRoleAudio(role) {
     const now = ac.currentTime
 
     if (role === 'DETECTIVE') {
-      // Terminal scan beep & low digital sweep
       const osc = ac.createOscillator()
       const filter = ac.createBiquadFilter()
       const gain = ac.createGain()
-
       osc.type = 'sine'
       osc.frequency.setValueAtTime(440, now)
       osc.frequency.exponentialRampToValueAtTime(1200, now + 0.4)
-
       filter.type = 'lowpass'
       filter.frequency.setValueAtTime(2000, now)
-
       gain.gain.setValueAtTime(0.2, now)
       gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2)
-
       osc.connect(filter)
       filter.connect(gain)
       gain.connect(ac.destination)
-
       osc.start()
       osc.stop(now + 1.3)
     } else if (role === 'INVESTIGATOR') {
-      // Wind hum + camera shutter click simulation
       const gainNode = ac.createGain()
       gainNode.gain.setValueAtTime(0.12, now)
       gainNode.gain.exponentialRampToValueAtTime(0.001, now + 1.5)
-
       const osc = ac.createOscillator()
       osc.type = 'triangle'
       osc.frequency.setValueAtTime(110, now)
@@ -118,23 +81,7 @@ function playRoleAudio(role) {
       gainNode.connect(ac.destination)
       osc.start()
       osc.stop(now + 1.6)
-
-      // Click
-      setTimeout(() => {
-        const clickOsc = ac.createOscillator()
-        const clickGain = ac.createGain()
-        clickOsc.type = 'sawtooth'
-        clickOsc.frequency.setValueAtTime(800, ac.currentTime)
-        clickOsc.frequency.exponentialRampToValueAtTime(150, ac.currentTime + 0.08)
-        clickGain.gain.setValueAtTime(0.1, ac.currentTime)
-        clickGain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.1)
-        clickOsc.connect(clickGain)
-        clickGain.connect(ac.destination)
-        clickOsc.start()
-        clickOsc.stop(ac.currentTime + 0.12)
-      }, 350)
     } else if (role === 'CONSPIRATOR') {
-      // Double heartbeat sound
       const playThump = (timeOffset) => {
         const osc = ac.createOscillator()
         const gain = ac.createGain()
@@ -150,8 +97,7 @@ function playRoleAudio(role) {
       playThump(0)
       playThump(0.3)
     } else if (role === 'MASTERMIND') {
-      // Deep swell synth chord
-      const chords = [55, 65.4, 82.4] // Root, minor third, fifth (A minor swell)
+      const chords = [55, 65.4, 82.4]
       chords.forEach(freq => {
         const osc = ac.createOscillator()
         const gain = ac.createGain()
@@ -160,15 +106,12 @@ function playRoleAudio(role) {
         gain.gain.setValueAtTime(0, now)
         gain.gain.linearRampToValueAtTime(0.08, now + 0.6)
         gain.gain.exponentialRampToValueAtTime(0.001, now + 2.5)
-
         const lowpass = ac.createBiquadFilter()
         lowpass.type = 'lowpass'
         lowpass.frequency.value = 180
-
         osc.connect(lowpass)
         lowpass.connect(gain)
         gain.connect(ac.destination)
-
         osc.start()
         osc.stop(now + 2.6)
       })
@@ -216,16 +159,35 @@ function CharacterShowcaseBody({ role, isUserRole, position, color }) {
         <StudentBody role={role} isWalking={false} isRunning={false} />
       </group>
 
-      {/* Indicator Marker above assigned player */}
-      {isUserRole && (
-        <group position={[0, 2.15, 0]}>
-          <mesh>
-            <octahedronGeometry args={[0.16, 0]} />
-            <meshBasicMaterial color="#38bdf8" wireframe />
-          </mesh>
-          <pointLight color="#38bdf8" intensity={1.5} distance={3} />
-        </group>
-      )}
+      {/* Role Badge directly ON TOP OF HEAD */}
+      <Html position={[0, 2.2, 0]} center distanceFactor={7}>
+        <div
+          style={{
+            padding: '6px 14px',
+            borderRadius: '16px',
+            background: isUserRole ? 'rgba(56, 189, 248, 0.35)' : 'rgba(15, 23, 42, 0.85)',
+            border: isUserRole ? '2px solid #38bdf8' : `1.5px solid ${color}`,
+            color: isUserRole ? '#38bdf8' : '#f1f5f9',
+            fontSize: '13px',
+            fontWeight: 'bold',
+            fontFamily: "'Orbitron', sans-serif",
+            boxShadow: isUserRole ? '0 0 20px rgba(56,189,248,0.7)' : `0 0 12px ${color}55`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+            backdropFilter: 'blur(8px)',
+            userSelect: 'none',
+          }}
+        >
+          <span>{role === 'DETECTIVE' ? '🔍' : role === 'INVESTIGATOR' ? '🧩' : role === 'MASTERMIND' ? '🧠' : '🔪'}</span>
+          <span>{role === 'DETECTIVE' ? 'Detective' : role === 'INVESTIGATOR' ? 'Investigator' : role === 'MASTERMIND' ? 'Mastermind' : 'Conspirator'}</span>
+          {isUserRole && (
+            <span style={{ background: '#38bdf8', color: '#090d16', padding: '2px 6px', borderRadius: '8px', fontSize: '10px', fontWeight: 900 }}>YOU</span>
+          )}
+        </div>
+      </Html>
     </group>
   )
 }
@@ -360,79 +322,9 @@ export default function RoleRevealScreen({ onBegin }) {
           <p className="cu-rr-tagline-text">{config.tagline}</p>
         </div>
 
-        {/* Animated 3D Character Lineup Badges */}
-        <div className={`cu-rr-lineup-badges ${animStage >= 2 ? 'cu-rr-visible' : ''}`} style={{
-          display: 'flex',
-          justifyContent: 'center',
-          gap: '16px',
-          margin: '12px 0 16px 0',
-          zIndex: 10,
-          flexWrap: 'wrap'
-        }}>
-          {LINEUP_ROLES.map((r) => {
-            const isSelf = r.role === role
-            return (
-              <div
-                key={r.role}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '16px',
-                  background: isSelf ? 'rgba(56, 189, 248, 0.25)' : 'rgba(15, 23, 42, 0.75)',
-                  border: isSelf ? '2px solid #38bdf8' : `1px solid ${r.color}55`,
-                  color: isSelf ? '#38bdf8' : '#e2e8f0',
-                  fontSize: '0.8rem',
-                  fontWeight: 'bold',
-                  fontFamily: "'Orbitron', sans-serif",
-                  boxShadow: isSelf ? '0 0 20px rgba(56,189,248,0.5)' : 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  backdropFilter: 'blur(6px)',
-                  transition: 'all 0.3s ease'
-                }}
-              >
-                <span>{r.role === 'DETECTIVE' ? '🔍' : r.role === 'INVESTIGATOR' ? '🧩' : r.role === 'MASTERMIND' ? '🧠' : '🔪'}</span>
-                <span>{r.name}</span>
-                {isSelf && <span style={{ background: '#38bdf8', color: '#090d16', padding: '2px 6px', borderRadius: '8px', fontSize: '0.65rem', fontWeight: 900 }}>YOU</span>}
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Step 3: Description */}
-        <div className={`cu-rr-desc-block ${animStage >= 3 ? 'cu-rr-visible' : ''}`}>
-          <p className="cu-rr-desc-text">{config.description}</p>
-        </div>
-
-        {/* Step 4: Ability lists staggered */}
-        <div className={`cu-rr-abilities-block ${animStage >= 4 ? 'cu-rr-visible' : ''}`}>
-          <p className="cu-rr-block-label">TACTICAL ABILITIES</p>
-          <div className="cu-rr-abilities-list">
-            {config.abilities.map((ab, idx) => (
-              <div
-                key={ab.name}
-                className="cu-rr-ability-card"
-                style={{
-                  animationDelay: `${idx * 250}ms`
-                }}
-                onMouseEnter={() => setHoveredAbility(ab)}
-                onMouseLeave={() => setHoveredAbility(null)}
-              >
-                <div className="cu-rr-ability-card-header">
-                  <span className="cu-rr-ab-icon">{ab.icon}</span>
-                  <span className="cu-rr-ab-name">{ab.name}</span>
-                </div>
-                <div className="cu-rr-ability-card-desc">{ab.desc}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Step 5: Mission quote & optional partner details */}
-        <div className={`cu-rr-meta-block ${animStage >= 5 ? 'cu-rr-visible' : ''}`}>
-          <blockquote className="cu-rr-quote">{config.quote}</blockquote>
-
-          {partnerInfo && (partnerInfo.partner_name || partnerInfo.partner_id) && (
+        {/* Step 3: Optional teammate reveal */}
+        {partnerInfo && (partnerInfo.partner_name || partnerInfo.partner_id) && (
+          <div className={`cu-rr-meta-block ${animStage >= 3 ? 'cu-rr-visible' : ''}`}>
             <div className="cu-rr-partner-reveal">
               <p className="cu-rr-partner-label">CONFIRMED TEAMMATE</p>
               <div className="cu-rr-partner-card">
@@ -444,20 +336,19 @@ export default function RoleRevealScreen({ onBegin }) {
                 <span className="cu-rr-partner-warning">KEEP CLASSIFIED</span>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Step 6: Begin action */}
-        <div className={`cu-rr-actions ${animStage >= 6 ? 'cu-rr-visible' : ''}`}>
+        {/* Step 4: Begin action */}
+        <div className={`cu-rr-actions ${animStage >= 4 ? 'cu-rr-visible' : ''}`} style={{ marginTop: 'auto', marginBottom: '30px' }}>
           <button className="cu-rr-btn" onClick={() => {
             audioManager.unlockAudio()
             if (onBegin) onBegin()
           }}>
             <span className="cu-rr-btn-glow" />
-            <span className="cu-rr-btn-inner">BEGIN OPERATION</span>
+            <span className="cu-rr-btn-inner">BEGIN INVESTIGATION</span>
           </button>
         </div>
-
 
       </div>
     </div>
