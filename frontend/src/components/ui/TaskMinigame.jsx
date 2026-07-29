@@ -5,7 +5,7 @@ import useGameStore from '../../store/gameStore'
 import audioManager from '../../utils/audioManager'
 
 /* ──────────────────────────────────────────────────────────────
-   VARIANT 1: WIRE MATCH (REPAIR_NETWORK, CHECK_CCTV)
+   VARIANT 1: WIRE MATCH (ANALYZE_CCTV, CATALOG_EVIDENCE, INJECT_MALWARE, SHRED_EVIDENCE)
    ────────────────────────────────────────────────────────────── */
 const WIRE_COLORS = [
   { id: 'pink', name: 'Alpha', color: '#ec4899', glow: 'rgba(236, 72, 153, 0.6)' },
@@ -155,7 +155,7 @@ function WireMatchGame({ onSuccess, onCancel }) {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   VARIANT 2: ROTATE VALVE (RESTOCK_LAB, SETUP_AUDITORIUM)
+   VARIANT 2: ROTATE VALVE (AUDIT_SERVER_LOGS, SCAN_FINGERPRINTS, FORGE_ACCESS_BADGE, WIPE_BACKUP_DRIVE)
    ────────────────────────────────────────────────────────────── */
 function RotateValveGame({ onSuccess, onCancel }) {
   // 3 Valves with current angle and target angle range [min, max]
@@ -254,7 +254,7 @@ function RotateValveGame({ onSuccess, onCancel }) {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   VARIANT 3: HOLD BAR (DEFAULT / ARCHIVE_FILES, SUBMIT_ATTENDANCE etc)
+   VARIANT 3: HOLD BAR (DECRYPT_SCHEMATICS, TRACE_SIGNAL, SCRAMBLE_COMMS, PLANT_DIVERSION)
    ────────────────────────────────────────────────────────────── */
 function HoldBarGame({ onSuccess, onCancel, task }) {
   const [progress, setProgress] = useState(0)
@@ -434,9 +434,10 @@ export default function TaskMinigame() {
 
           {/* Body variant switch */}
           <div className="modal-body">
-            {taskType === 'REPAIR_NETWORK' || taskType === 'CHECK_CCTV' ? (
+            {/* Wire Match: ANALYZE_CCTV, CATALOG_EVIDENCE, INJECT_MALWARE, SHRED_EVIDENCE */}
+            {taskType === 'ANALYZE_CCTV' || taskType === 'CATALOG_EVIDENCE' || taskType === 'INJECT_MALWARE' || taskType === 'SHRED_EVIDENCE' ? (
               <WireMatchGame onSuccess={handleSuccess} onCancel={handleCancel} />
-            ) : taskType === 'RESTOCK_LAB' || taskType === 'SETUP_AUDITORIUM' ? (
+            ) : taskType === 'AUDIT_SERVER_LOGS' || taskType === 'SCAN_FINGERPRINTS' || taskType === 'FORGE_ACCESS_BADGE' || taskType === 'WIPE_BACKUP_DRIVE' ? (
               <RotateValveGame onSuccess={handleSuccess} onCancel={handleCancel} />
             ) : (
               <HoldBarGame onSuccess={handleSuccess} onCancel={handleCancel} task={activeMinigameTask} />
