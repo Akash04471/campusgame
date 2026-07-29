@@ -405,42 +405,6 @@ function OtherPlayerCharacter({ data }) {
   )
 }
 
-/* ── Ray-Box AABB Intersection for Camera Collision ── */
-function intersectRayAABB(rayStart, rayDir, boxMin, boxMax) {
-  let tmin = -Infinity
-  let tmax = Infinity
-
-  for (let i = 0; i < 3; i++) {
-    const startCoord = i === 0 ? rayStart.x : (i === 1 ? rayStart.y : rayStart.z)
-    const dirCoord = i === 0 ? rayDir.x : (i === 1 ? rayDir.y : rayDir.z)
-    const boxMinCoord = i === 0 ? boxMin.x : (i === 1 ? boxMin.y : boxMin.z)
-    const boxMaxCoord = i === 0 ? boxMax.x : (i === 1 ? boxMax.y : boxMax.z)
-
-    if (Math.abs(dirCoord) < 1e-6) {
-      if (startCoord < boxMinCoord || startCoord > boxMaxCoord) {
-        return null
-      }
-    } else {
-      const invD = 1.0 / dirCoord
-      let t1 = (boxMinCoord - startCoord) * invD
-      let t2 = (boxMaxCoord - startCoord) * invD
-
-      if (t1 > t2) {
-        const temp = t1
-        t1 = t2
-        t2 = temp
-      }
-
-      tmin = Math.max(tmin, t1)
-      tmax = Math.min(tmax, t2)
-
-      if (tmin > tmax) return null
-    }
-  }
-
-  return tmin >= 0 ? tmin : null
-}
-
 /* ══════════════════════════════════════════════
    MAIN PLAYER
    ══════════════════════════════════════════════ */
@@ -729,9 +693,9 @@ export default function Player() {
       controlsRef.current.target.x += deltaX
       controlsRef.current.target.z += deltaZ
       
-      // Clamp target within safe boundaries
-      controlsRef.current.target.x = THREE.MathUtils.clamp(controlsRef.current.target.x, -45, 45)
-      controlsRef.current.target.z = THREE.MathUtils.clamp(controlsRef.current.target.z, -45, 45)
+      // Clamp target within safe campus boundaries
+      controlsRef.current.target.x = THREE.MathUtils.clamp(controlsRef.current.target.x, -48, 48)
+      controlsRef.current.target.z = THREE.MathUtils.clamp(controlsRef.current.target.z, -48, 48)
       controlsRef.current.target.y = 0.8
 
       controlsRef.current.update()
@@ -741,46 +705,6 @@ export default function Player() {
       const targetDirZ = controlsRef.current.target.z - camera.position.z
       const yaw = Math.atan2(targetDirX, targetDirZ)
       setCameraYaw(yaw)
-
-      // Perform camera collision check against building obstacles
-      const playerHeadPos = new THREE.Vector3(currentPos.x, 1.2, currentPos.z)
-      const idealCamPos = camera.position.clone()
-      const rayDir = idealCamPos.clone().sub(playerHeadPos)
-      const distance = rayDir.length()
-      rayDir.normalize()
-
-      let closestT = distance
-
-      for (const area of campusAreas) {
-        if (
-          area.id === 'basketball_court' ||
-          area.id === 'basketball_court_left' ||
-          area.id === 'hockey_court' ||
-          area.id === 'plants_trees' ||
-          area.id === 'park_garden' ||
-          area.id === 'birds_park' ||
-          area.id === 'sitting_area' ||
-          area.id === 'parking'
-        ) {
-          continue
-        }
-
-        const [bx, , bz] = area.position
-        const [bw, bh, bd] = area.size
-
-        const boxMin = new THREE.Vector3(bx - bw / 2, 0, bz - bd / 2)
-        const boxMax = new THREE.Vector3(bx + bw / 2, bh + 0.5, bz + bd / 2)
-
-        const t = intersectRayAABB(playerHeadPos, rayDir, boxMin, boxMax)
-        if (t !== null && t < closestT) {
-          closestT = t
-        }
-      }
-
-      if (closestT < distance) {
-        const safeT = Math.max(1.8, closestT - 0.5) // Keep camera buffer distance
-        camera.position.copy(playerHeadPos).addScaledVector(rayDir, safeT)
-      }
     }
     prevPos.current.copy(currentPos)
 

@@ -31,8 +31,8 @@ export default function DecisionPhaseScreen() {
   // Local selection state before submitting
   const [selectedCandidate, setSelectedCandidate] = useState(null)
 
-  // Timer countdown for disconnect / resolution fallback (20-second duration)
-  const [timerSeconds, setTimerSeconds] = useState(20)
+  // Timer countdown for decision phase (10-second duration)
+  const [timerSeconds, setTimerSeconds] = useState(10)
 
   // Sync with server-authoritative timer updates if available
   useEffect(() => {
@@ -86,22 +86,18 @@ export default function DecisionPhaseScreen() {
   }, [gamePhase])
 
   // ── Solo-mode auto bot voting ──────────────────────────────────────────────
-  // When there is no WebSocket (SOLO mode), automatically make bots vote after
-  // a short delay and push a GAME_OVER result to the store so the Results
-  // Screen appears without needing a real backend.
-  const soloBotVotedRef = useRef(false)
+  // When there is no WebSocket (SOLO mode), wait for the 10-second timer to reach 0
+  // before resolving and showing the Results Screen.
+  const soloResolvedRef = useRef(false)
   useEffect(() => {
     if (gamePhase !== 'decision' && gamePhase !== 'accusation') {
-      soloBotVotedRef.current = false
+      soloResolvedRef.current = false
       return
     }
     if (ws && ws.readyState === WebSocket.OPEN) return  // multiplayer — let backend handle it
-    if (soloBotVotedRef.current) return
 
-    const delay = 5000 + Math.random() * 3000  // 5-8s
-    const timeout = setTimeout(() => {
-      if (soloBotVotedRef.current) return
-      soloBotVotedRef.current = true
+    if (timerSeconds <= 0 && !soloResolvedRef.current) {
+      soloResolvedRef.current = true
 
       const state = useGameStore.getState()
       const myRole = (state.role || 'DETECTIVE').toUpperCase()
@@ -117,8 +113,8 @@ export default function DecisionPhaseScreen() {
       const detectiveGuess   = state.decisionPhase?.detectiveChoice   || (myRole === 'DETECTIVE' ? null : randTarget(String(state.playerId || '1')))
       const investigatorGuess = state.decisionPhase?.investigatorChoices?.['9001'] || randTarget('9001')
 
-      const detectiveCorrect   = detectiveGuess   === soloConspiratorId
-      const investigatorCorrect = investigatorGuess === soloMastermindId
+      const detectiveCorrect   = String(detectiveGuess) === String(soloConspiratorId)
+      const investigatorCorrect = String(investigatorGuess) === String(soloMastermindId)
       const investigatorsWon   = detectiveCorrect && investigatorCorrect
 
       const result = {
@@ -145,10 +141,10 @@ export default function DecisionPhaseScreen() {
         detectiveCorrect,
         investigatorVoteResult: { success: true, correct: investigatorCorrect },
         player_stats: [
-          { player_id: String(state.playerId || '1'), username: 'You', role: myRole, points_earned: detectiveCorrect ? 100 : 30, tasks_completed: 2 },
-          { player_id: '9001', username: 'Agent Maya (Bot)', role: 'INVESTIGATOR', points_earned: investigatorCorrect ? 80 : 20, tasks_completed: 3 },
-          { player_id: '9002', username: 'Officer Alex (Bot)', role: 'MASTERMIND', points_earned: investigatorsWon ? 0 : 90, tasks_completed: 3 },
-          { player_id: '9003', username: 'Dr. Viktor (Bot)', role: 'CONSPIRATOR', points_earned: investigatorsWon ? 0 : 90, tasks_completed: 2 },
+          { player_id: String(state.playerId || '1'), username: 'You', role: myRole, points_earned: detectiveCorrect ? 100 : 30, tasks_completed: 2, won: investigatorsWon },
+          { player_id: '9001', username: 'Agent Maya (Bot)', role: 'INVESTIGATOR', points_earned: investigatorCorrect ? 80 : 20, tasks_completed: 3, won: investigatorsWon },
+          { player_id: '9002', username: 'Officer Alex (Bot)', role: 'MASTERMIND', points_earned: investigatorsWon ? 0 : 90, tasks_completed: 3, won: !investigatorsWon },
+          { player_id: '9003', username: 'Dr. Viktor (Bot)', role: 'CONSPIRATOR', points_earned: investigatorsWon ? 0 : 90, tasks_completed: 2, won: !investigatorsWon },
         ],
         all_roles: {
           [String(state.playerId || '1')]: myRole,
@@ -165,9 +161,8 @@ export default function DecisionPhaseScreen() {
       }
 
       state.setGameResult(result)
-    }, delay)
-    return () => clearTimeout(timeout)
-  }, [gamePhase, ws])
+    }
+  }, [gamePhase, timerSeconds, ws])
 
 
 

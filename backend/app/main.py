@@ -422,11 +422,11 @@ async def run_authoritative_game_loop(room_code: str):
                 if elapsed >= timer_limit and not getattr(gs, 'decision_phase_active', False) and not getattr(gs, 'decision_resolved', False):
                     gs.decision_phase_active = True
                     gs.decision_resolved = False
-                    gs.decision_phase_deadline = _time.time() + 20.0
+                    gs.decision_phase_deadline = _time.time() + 10.0
                     bot_manager.on_phase_change(room_code, 'decision', gs, room, broadcast_to_room, send_to_player)
                     await broadcast_to_room(room_code, {
                         "type": "DECISION_PHASE",
-                        "payload": {"status": "started", "reason": "TIME_EXPIRED", "time_remaining": 20}
+                        "payload": {"status": "started", "reason": "TIME_EXPIRED", "time_remaining": 10}
                     })
 
 
@@ -1334,11 +1334,11 @@ async def websocket_game_endpoint(websocket: WebSocket, room_code: str, player_i
                 if not getattr(gs, 'decision_phase_active', False):
                     gs.decision_phase_active = True
                     gs.decision_resolved = False
-                    gs.decision_phase_deadline = _time.time() + 20.0
+                    gs.decision_phase_deadline = _time.time() + 10.0
                 bot_manager.on_phase_change(room_code, 'decision', gs, room, broadcast_to_room, send_to_player)
                 await broadcast_to_room(room_code, {
                     "type": "DECISION_PHASE",
-                    "payload": {"status": "started", "time_remaining": 20}
+                    "payload": {"status": "started", "time_remaining": 10}
                 })
 
 
@@ -1384,20 +1384,6 @@ async def websocket_game_endpoint(websocket: WebSocket, room_code: str, player_i
                         "voter_id": pid_str
                     }
                 })
-
-                # Check if Detective and all active Investigators have submitted
-                active_investigators = {
-                    p_id_k for p_id_k, r in gs.assignments.items()
-                    if r == "INVESTIGATOR" and int(p_id_k) in room.players
-                }
-
-                has_detective = any(r == "DETECTIVE" for r in gs.assignments.values())
-
-                detective_done = not has_detective or gs.decision_votes['submitted_detective']
-                investigators_done = active_investigators.issubset(gs.decision_votes['submitted_investigators'])
-
-                if detective_done and investigators_done:
-                    await force_resolve_decision_phase(room_code, gs, room, broadcast_to_room)
 
 
 

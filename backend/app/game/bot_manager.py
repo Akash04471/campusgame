@@ -211,8 +211,8 @@ class BotManager:
         bot_id_str = str(bot_id)
 
         try:
-            # 20-second phase duration window: submit between 2.0s and 8.0s
-            delay = random.uniform(2.0, 8.0)
+            # 10-second phase duration window: submit between 1.5s and 4.5s
+            delay = random.uniform(1.5, 4.5)
             await asyncio.sleep(delay)
 
 
@@ -268,44 +268,6 @@ class BotManager:
                 "voter_id": bot_id_str
             }
         })
-
-        # Check if all active players (human + bot) have submitted
-        active_investigators = {
-            p_id_k for p_id_k, r in gs.assignments.items()
-            if r == "INVESTIGATOR" and int(p_id_k) in room.players
-        }
-        has_detective = any(r == "DETECTIVE" for r in gs.assignments.values())
-
-        detective_done = not has_detective or gs.decision_votes['submitted_detective']
-        investigators_done = active_investigators.issubset(gs.decision_votes['submitted_investigators'])
-
-        if detective_done and investigators_done:
-            player_names = {str(pid): p.username for pid, p in room.players.items()}
-            db = SessionLocal()
-            try:
-                result = resolve_game(
-                    room_code=room_code,
-                    assignments=gs.assignments,
-                    mastermind_id=gs.mastermind_id,
-                    conspirator_id=gs.conspirator_id,
-                    accusation={
-                        "conspirator_accusation": gs.decision_votes['detective_choice'],
-                    },
-                    player_names=player_names,
-                    session_db_id=getattr(gs, 'db_session_id', None),
-                    db=db,
-                    investigator_choices=gs.decision_votes['investigator_choices'],
-                )
-                db.commit()
-            finally:
-                db.close()
-
-            gs.is_active = False
-            room.status = "finished"
-            await broadcast_func(room_code, {
-                "type": "GAME_OVER",
-                "payload": result
-            })
 
     def pick_bot_target(self, bot_id_str: str, persona: str, valid_targets: List[str], room_code: str) -> str:
         """
