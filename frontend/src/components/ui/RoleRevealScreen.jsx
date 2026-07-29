@@ -4,6 +4,7 @@ import { Stars } from '@react-three/drei'
 import * as THREE from 'three'
 import useGameStore from '../../store/gameStore'
 import audioManager from '../../utils/audioManager'
+import { StudentBody, ROLE_OUTFIT } from '../game/Player'
 
 
 /* ─────────────────────────────────────────────
@@ -178,6 +179,75 @@ function playRoleAudio(role) {
 }
 
 /* ─────────────────────────────────────────────
+   3D HUMAN CHARACTER LINEUP SHOWCASE
+   ───────────────────────────────────────────── */
+const LINEUP_ROLES = [
+  { role: 'DETECTIVE',    name: 'Detective',    color: '#06b6d4', pos: [-3.3, -1.05, -0.2] },
+  { role: 'INVESTIGATOR', name: 'Investigator', color: '#10b981', pos: [-1.1, -1.05, 0.3] },
+  { role: 'MASTERMIND',   name: 'Mastermind',   color: '#ef4444', pos: [1.1, -1.05, 0.3] },
+  { role: 'CONSPIRATOR',  name: 'Conspirator',  color: '#f97316', pos: [3.3, -1.05, -0.2] },
+]
+
+function CharacterShowcaseBody({ role, isUserRole, position, color }) {
+  const groupRef = useRef()
+  useFrame(({ clock }) => {
+    if (!groupRef.current) return
+    const t = clock.getElapsedTime()
+    groupRef.current.rotation.y = Math.sin(t * 0.7 + (role === 'DETECTIVE' ? 0 : role === 'INVESTIGATOR' ? 1.5 : role === 'MASTERMIND' ? 3.0 : 4.5)) * 0.22
+  })
+
+  return (
+    <group position={position}>
+      {/* Base Pedestal */}
+      <mesh position={[0, -0.05, 0]}>
+        <cylinderGeometry args={[0.7, 0.8, 0.12, 32]} />
+        <meshStandardMaterial color="#0f172a" roughness={0.3} metalness={0.8} />
+      </mesh>
+      {/* Neon Glow Ring */}
+      <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.6, 0.7, 32]} />
+        <meshBasicMaterial color={color} side={THREE.DoubleSide} />
+      </mesh>
+      {/* Spotlight for character */}
+      <pointLight position={[0, 3, 1]} intensity={1.8} color={color} distance={6} />
+
+      {/* 3D Human Body Structure */}
+      <group ref={groupRef} position={[0, 0.06, 0]}>
+        <StudentBody role={role} isWalking={false} isRunning={false} />
+      </group>
+
+      {/* Indicator Marker above assigned player */}
+      {isUserRole && (
+        <group position={[0, 2.15, 0]}>
+          <mesh>
+            <octahedronGeometry args={[0.16, 0]} />
+            <meshBasicMaterial color="#38bdf8" wireframe />
+          </mesh>
+          <pointLight color="#38bdf8" intensity={1.5} distance={3} />
+        </group>
+      )}
+    </group>
+  )
+}
+
+function CharacterLineupStage({ userRole }) {
+  return (
+    <group>
+      <gridHelper args={[16, 16, '#0284c7', '#1e293b']} position={[0, -1.12, 0]} />
+      {LINEUP_ROLES.map((item) => (
+        <CharacterShowcaseBody
+          key={item.role}
+          role={item.role}
+          isUserRole={item.role === userRole}
+          position={item.pos}
+          color={item.color}
+        />
+      ))}
+    </group>
+  )
+}
+
+/* ─────────────────────────────────────────────
    3D BACKGROUND PARTICLES SYSTEM
    ───────────────────────────────────────────── */
 function AmbientParticles({ roleColor }) {
@@ -221,54 +291,6 @@ function AmbientParticles({ roleColor }) {
   )
 }
 
-function RoleSculpture({ roleColor, role }) {
-  const meshRef = useRef()
-  useFrame(({ clock }) => {
-    if (!meshRef.current) return
-    const t = clock.getElapsedTime()
-    meshRef.current.rotation.y = t * 0.4
-    meshRef.current.rotation.x = Math.sin(t * 0.3) * 0.2
-  })
-
-  // Provide a specialized sculpture representing the role
-  if (role === 'DETECTIVE') {
-    return (
-      <mesh ref={meshRef} position={[0, 0, 0]}>
-        <octahedronGeometry args={[2, 0]} />
-        <meshBasicMaterial color={roleColor} wireframe transparent opacity={0.3} />
-      </mesh>
-    )
-  } else if (role === 'INVESTIGATOR') {
-    return (
-      <mesh ref={meshRef} position={[0, 0, 0]}>
-        <icosahedronGeometry args={[2.1, 1]} />
-        <meshBasicMaterial color={roleColor} wireframe transparent opacity={0.25} />
-      </mesh>
-    )
-  } else if (role === 'CONSPIRATOR') {
-    return (
-      <mesh ref={meshRef} position={[0, 0, 0]}>
-        <dodecahedronGeometry args={[2, 0]} />
-        <meshBasicMaterial color={roleColor} wireframe transparent opacity={0.22} />
-      </mesh>
-    )
-  } else {
-    // Mastermind: nested dark cubes rotating oppositely
-    return (
-      <group ref={meshRef}>
-        <mesh>
-          <boxGeometry args={[2, 2, 2]} />
-          <meshBasicMaterial color={roleColor} wireframe transparent opacity={0.25} />
-        </mesh>
-        <mesh rotation={[0, Math.PI / 4, Math.PI / 4]}>
-          <boxGeometry args={[1.2, 1.2, 1.2]} />
-          <meshBasicMaterial color="#ffffff" wireframe transparent opacity={0.15} />
-        </mesh>
-      </group>
-    )
-  }
-}
-
 /* ─────────────────────────────────────────────
    MAIN COMPONENT — RoleRevealScreen
    ───────────────────────────────────────────── */
@@ -308,13 +330,14 @@ export default function RoleRevealScreen({ onBegin }) {
         background: config.bgStyle
       }}
     >
-      {/* 3D Atmosphere Canvas */}
+      {/* 3D Atmosphere Canvas with 4 Character Body Structures Lineup */}
       <div className="cu-rr-canvas">
-        <Canvas camera={{ position: [0, 0, 6], fov: 60 }}>
-          <ambientLight intensity={0.1} />
+        <Canvas camera={{ position: [0, 0.4, 5.2], fov: 50 }}>
+          <ambientLight intensity={0.6} />
+          <directionalLight position={[0, 6, 4]} intensity={1.2} />
           <Stars radius={60} depth={30} count={300} factor={1.5} saturation={0} fade speed={0.4} />
           <AmbientParticles roleColor={config.color} />
-          {animStage >= 1 && <RoleSculpture roleColor={config.color} role={role} />}
+          <CharacterLineupStage userRole={role} />
         </Canvas>
       </div>
 
@@ -335,6 +358,45 @@ export default function RoleRevealScreen({ onBegin }) {
           <p className="cu-rr-pretitle">IDENTITY DECLASSIFIED</p>
           <h1 className="cu-rr-title-text">{config.title}</h1>
           <p className="cu-rr-tagline-text">{config.tagline}</p>
+        </div>
+
+        {/* Animated 3D Character Lineup Badges */}
+        <div className={`cu-rr-lineup-badges ${animStage >= 2 ? 'cu-rr-visible' : ''}`} style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '16px',
+          margin: '12px 0 16px 0',
+          zIndex: 10,
+          flexWrap: 'wrap'
+        }}>
+          {LINEUP_ROLES.map((r) => {
+            const isSelf = r.role === role
+            return (
+              <div
+                key={r.role}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '16px',
+                  background: isSelf ? 'rgba(56, 189, 248, 0.25)' : 'rgba(15, 23, 42, 0.75)',
+                  border: isSelf ? '2px solid #38bdf8' : `1px solid ${r.color}55`,
+                  color: isSelf ? '#38bdf8' : '#e2e8f0',
+                  fontSize: '0.8rem',
+                  fontWeight: 'bold',
+                  fontFamily: "'Orbitron', sans-serif",
+                  boxShadow: isSelf ? '0 0 20px rgba(56,189,248,0.5)' : 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backdropFilter: 'blur(6px)',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <span>{r.role === 'DETECTIVE' ? '🔍' : r.role === 'INVESTIGATOR' ? '🧩' : r.role === 'MASTERMIND' ? '🧠' : '🔪'}</span>
+                <span>{r.name}</span>
+                {isSelf && <span style={{ background: '#38bdf8', color: '#090d16', padding: '2px 6px', borderRadius: '8px', fontSize: '0.65rem', fontWeight: 900 }}>YOU</span>}
+              </div>
+            )
+          })}
         </div>
 
         {/* Step 3: Description */}
