@@ -4,47 +4,27 @@ import * as THREE from 'three'
 import { Html } from '@react-three/drei'
 import useGameStore from '../../store/gameStore'
 
-/* Dynamic role-aware text mapping */
+/* Dynamic role-aware text mapping — each role has 3 unique task types */
 const TASK_NAMES = {
-  INVESTIGATOR: {
-    REPAIR_NETWORK: 'Repair Network Terminal',
-    ARCHIVE_FILES: 'Archive Research Files',
-    SUBMIT_ATTENDANCE: 'Submit Attendance Logs',
-    CHECK_CCTV: 'Check CCTV Feeds',
-    RETRIEVE_PRINT: 'Retrieve Print Job',
-    RESTOCK_LAB: 'Restock Lab Supplies',
-    SETUP_AUDITORIUM: 'Set Up Auditorium',
-    PLACE_LUNCH: 'Place Lunch Order',
-  },
   DETECTIVE: {
-    REPAIR_NETWORK: 'Repair Network Terminal',
-    ARCHIVE_FILES: 'Archive Research Files',
-    SUBMIT_ATTENDANCE: 'Submit Attendance Logs',
-    CHECK_CCTV: 'Check CCTV Feeds',
-    RETRIEVE_PRINT: 'Retrieve Print Job',
-    RESTOCK_LAB: 'Restock Lab Supplies',
-    SETUP_AUDITORIUM: 'Set Up Auditorium',
-    PLACE_LUNCH: 'Place Lunch Order',
+    ANALYZE_CCTV: 'Analyze CCTV Surveillance Feeds',
+    AUDIT_SERVER_LOGS: 'Audit Server Access Logs',
+    DECRYPT_SCHEMATICS: 'Decrypt Encrypted Schematics',
+  },
+  INVESTIGATOR: {
+    CATALOG_EVIDENCE: 'Catalog Physical Evidence',
+    SCAN_FINGERPRINTS: 'Scan Fingerprint Database',
+    TRACE_SIGNAL: 'Trace Radio Signal Source',
   },
   CONSPIRATOR: {
-    REPAIR_NETWORK: 'Install Keylogger on Terminal',
-    ARCHIVE_FILES: 'Corrupt Research Database',
-    SUBMIT_ATTENDANCE: 'Falsify Attendance Records',
-    CHECK_CCTV: 'Disable Security Cameras',
-    RETRIEVE_PRINT: 'Intercept Keycard Printout',
-    RESTOCK_LAB: 'Contaminate Chemical Reagents',
-    SETUP_AUDITORIUM: 'Rig Stage Lights for Failure',
-    PLACE_LUNCH: 'Poison Staff Cafeteria Food',
+    SHRED_EVIDENCE: 'Shred Physical Evidence Logs',
+    WIPE_BACKUP_DRIVE: 'Wipe Backup Hard Drive',
+    PLANT_DIVERSION: 'Plant Diversionary Device',
   },
   MASTERMIND: {
-    REPAIR_NETWORK: 'Install Keylogger on Terminal',
-    ARCHIVE_FILES: 'Corrupt Research Database',
-    SUBMIT_ATTENDANCE: 'Falsify Attendance Records',
-    CHECK_CCTV: 'Disable Security Cameras',
-    RETRIEVE_PRINT: 'Intercept Keycard Printout',
-    RESTOCK_LAB: 'Contaminate Chemical Reagents',
-    SETUP_AUDITORIUM: 'Rig Stage Lights for Failure',
-    PLACE_LUNCH: 'Poison Staff Cafeteria Food',
+    INJECT_MALWARE: 'Inject Malware into Server',
+    FORGE_ACCESS_BADGE: 'Forge Security Access Badge',
+    SCRAMBLE_COMMS: 'Scramble Communication Channels',
   }
 }
 
@@ -60,18 +40,26 @@ const AREA_WORLD_POSITIONS = {
   'Cafeteria':        [ 32, 16],
 }
 
-/* GDD §10.3 task type icons */
+/* Task type icons — one per unique task type */
 const TASK_ICONS = {
-  REPAIR_NETWORK:   '🔧',
-  ARCHIVE_FILES:    '📁',
-  SUBMIT_ATTENDANCE:'📋',
-  CHECK_CCTV:       '📹',
-  RETRIEVE_PRINT:   '🖨️',
-  RESTOCK_LAB:      '🧪',
-  SETUP_AUDITORIUM: '🎭',
-  PLACE_LUNCH:      '🍽️',
-  FAKE_TASK:        '❓',
-  DEFAULT:          '⚙️',
+  // Detective
+  ANALYZE_CCTV:       '📹',
+  AUDIT_SERVER_LOGS:  '💻',
+  DECRYPT_SCHEMATICS: '🔐',
+  // Investigator
+  CATALOG_EVIDENCE:   '📁',
+  SCAN_FINGERPRINTS:  '🔍',
+  TRACE_SIGNAL:       '📡',
+  // Mastermind
+  INJECT_MALWARE:     '🦠',
+  FORGE_ACCESS_BADGE: '🪪',
+  SCRAMBLE_COMMS:     '📻',
+  // Conspirator
+  SHRED_EVIDENCE:     '🗑️',
+  WIPE_BACKUP_DRIVE:  '💾',
+  PLANT_DIVERSION:    '💣',
+  // Fallback
+  DEFAULT:            '⚙️',
 }
 
 /* ── Sparkle particle system for task completion ── */

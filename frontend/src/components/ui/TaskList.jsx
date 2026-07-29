@@ -39,59 +39,47 @@ const AREA_WORLD_POSITIONS = {
   'Cafeteria':        [ 32, 16],
 }
 
-/* Dynamic role-aware text mapping */
+/* Dynamic role-aware task metadata — each role has 3 unique task types */
 const TASK_MAPPINGS = {
-  INVESTIGATOR: {
-    REPAIR_NETWORK: { name: 'Repair Network Terminal', category: 'Digital Forensics', desc: 'The network interface in the Computer Lab has crashed. Reset the router and reconnect the optic terminals.', priority: 'MEDIUM', priorityColor: '#eab308' },
-    ARCHIVE_FILES: { name: 'Archive Research Files', category: 'Evidence', desc: 'Secure the cryptographic project files in the Library database. Save the backup on local tape storage.', priority: 'HIGH', priorityColor: '#f59e0b' },
-    SUBMIT_ATTENDANCE: { name: 'Submit Attendance Logs', category: 'Investigation', desc: 'Collect current class attendance logs from the MCA department and upload them to the registrar.', priority: 'LOW', priorityColor: '#94a3b8' },
-    CHECK_CCTV: { name: 'Check CCTV Feeds', category: 'Digital Forensics', desc: 'Analyze logs in the Security Office for unauthorized logins and trace potential system anomalies.', priority: 'CRITICAL', priorityColor: '#f43f5e' },
-    RETRIEVE_PRINT: { name: 'Retrieve Print Job', category: 'Evidence', desc: 'Grab keycard authorization logs printed in the Main Block printer tray before they are overwritten.', priority: 'LOW', priorityColor: '#94a3b8' },
-    RESTOCK_LAB: { name: 'Restock Lab Supplies', category: 'Campus', desc: 'Refill chemical reagents and secure the research workbench at the Research Center.', priority: 'MEDIUM', priorityColor: '#eab308' },
-    SETUP_AUDITORIUM: { name: 'Set Up Auditorium', category: 'Campus', desc: 'Verify stage lights and check the soundboard connections in the Auditorium for the lock-down broadcast.', priority: 'MEDIUM', priorityColor: '#eab308' },
-    PLACE_LUNCH: { name: 'Place Lunch Order', category: 'Campus', desc: 'Submit a catering ticket for the security detail at the Cafeteria terminals.', priority: 'LOW', priorityColor: '#94a3b8' }
-  },
   DETECTIVE: {
-    REPAIR_NETWORK: { name: 'Repair Network Terminal', category: 'Digital Forensics', desc: 'The network interface in the Computer Lab has crashed. Reset the router and reconnect the optic terminals.', priority: 'MEDIUM', priorityColor: '#eab308' },
-    ARCHIVE_FILES: { name: 'Archive Research Files', category: 'Evidence', desc: 'Secure the cryptographic project files in the Library database. Save the backup on local tape storage.', priority: 'HIGH', priorityColor: '#f59e0b' },
-    SUBMIT_ATTENDANCE: { name: 'Submit Attendance Logs', category: 'Investigation', desc: 'Collect current class attendance logs from the MCA department and upload them to the registrar.', priority: 'LOW', priorityColor: '#94a3b8' },
-    CHECK_CCTV: { name: 'Check CCTV Feeds', category: 'Digital Forensics', desc: 'Analyze logs in the Security Office for unauthorized logins and trace potential system anomalies.', priority: 'CRITICAL', priorityColor: '#f43f5e' },
-    RETRIEVE_PRINT: { name: 'Retrieve Print Job', category: 'Evidence', desc: 'Grab keycard authorization logs printed in the Main Block printer tray before they are overwritten.', priority: 'LOW', priorityColor: '#94a3b8' },
-    RESTOCK_LAB: { name: 'Restock Lab Supplies', category: 'Campus', desc: 'Refill chemical reagents and secure the research workbench at the Research Center.', priority: 'MEDIUM', priorityColor: '#eab308' },
-    SETUP_AUDITORIUM: { name: 'Set Up Auditorium', category: 'Campus', desc: 'Verify stage lights and check the soundboard connections in the Auditorium for the lock-down broadcast.', priority: 'MEDIUM', priorityColor: '#eab308' },
-    PLACE_LUNCH: { name: 'Place Lunch Order', category: 'Campus', desc: 'Submit a catering ticket for the security detail at the Cafeteria terminals.', priority: 'LOW', priorityColor: '#94a3b8' }
+    ANALYZE_CCTV: { name: 'Analyze CCTV Surveillance Feeds', category: 'Surveillance', desc: 'Review and cross-reference surveillance camera feeds from the Security Office to identify suspect movements and timeline anomalies.', priority: 'CRITICAL', priorityColor: '#f43f5e' },
+    AUDIT_SERVER_LOGS: { name: 'Audit Server Access Logs', category: 'Digital Forensics', desc: 'Examine server access logs in the Computer Lab for unauthorized logins, file transfers, and suspicious activity timestamps.', priority: 'HIGH', priorityColor: '#f59e0b' },
+    DECRYPT_SCHEMATICS: { name: 'Decrypt Encrypted Schematics', category: 'Evidence Analysis', desc: 'Crack the encryption on classified research schematics at the Research Center to uncover hidden evidence trails.', priority: 'HIGH', priorityColor: '#f59e0b' },
   },
-  CONSPIRATOR: {
-    REPAIR_NETWORK: { name: 'Install Keylogger on Terminal', category: 'Sabotage', desc: 'Deploy an encrypted keylogger on the main laboratory terminal to sniff researcher credentials.', priority: 'MEDIUM', priorityColor: '#eab308' },
-    ARCHIVE_FILES: { name: 'Corrupt Research Database', category: 'Sabotage', desc: 'Inject a logic bomb into the primary research tables in the Library to overwrite the file index structures.', priority: 'HIGH', priorityColor: '#f59e0b' },
-    SUBMIT_ATTENDANCE: { name: 'Falsify Attendance Records', category: 'Deception', desc: 'Modify attendance logs in the MCA Department to establish a fake alibi for the suspect pool.', priority: 'LOW', priorityColor: '#94a3b8' },
-    CHECK_CCTV: { name: 'Disable Security Cameras', category: 'Sabotage', desc: 'Sabotage the CCTV feed loops in the Security Office, creating a blind spot on the east campus wing.', priority: 'CRITICAL', priorityColor: '#f43f5e' },
-    RETRIEVE_PRINT: { name: 'Intercept Keycard Printout', category: 'Sabotage', desc: 'Steal the printed security override sheets in the Main Block before they reach the guard desk.', priority: 'LOW', priorityColor: '#94a3b8' },
-    RESTOCK_LAB: { name: 'Contaminate Chemical Reagents', category: 'Sabotage', desc: 'Tamper with lab chemical formulas at the Research Center to delay database reconstruction efforts.', priority: 'MEDIUM', priorityColor: '#eab308' },
-    SETUP_AUDITORIUM: { name: 'Rig Stage Lights for Failure', category: 'Sabotage', desc: 'Short-circuit the primary power distribution relay in the Auditorium to force an outage.', priority: 'MEDIUM', priorityColor: '#eab308' },
-    PLACE_LUNCH: { name: 'Poison Staff Cafeteria Food', category: 'Deception', desc: 'Spike cafeteria ingredients to incapacitate guards and slow down investigator search routines.', priority: 'LOW', priorityColor: '#94a3b8' }
+  INVESTIGATOR: {
+    CATALOG_EVIDENCE: { name: 'Catalog Physical Evidence', category: 'Forensics', desc: 'Systematically catalog and tag all physical evidence items found in the Library archives for cross-referencing.', priority: 'HIGH', priorityColor: '#f59e0b' },
+    SCAN_FINGERPRINTS: { name: 'Scan Fingerprint Database', category: 'Biometrics', desc: 'Run fingerprint scans against the MCA Department biometric database to identify unknown prints found at crime scenes.', priority: 'CRITICAL', priorityColor: '#f43f5e' },
+    TRACE_SIGNAL: { name: 'Trace Radio Signal Source', category: 'Field Forensics', desc: 'Use signal triangulation equipment in the Auditorium to pinpoint the source of encrypted radio transmissions.', priority: 'MEDIUM', priorityColor: '#eab308' },
   },
   MASTERMIND: {
-    REPAIR_NETWORK: { name: 'Install Keylogger on Terminal', category: 'Sabotage', desc: 'Deploy an encrypted keylogger on the main laboratory terminal to sniff researcher credentials.', priority: 'MEDIUM', priorityColor: '#eab308' },
-    ARCHIVE_FILES: { name: 'Corrupt Research Database', category: 'Sabotage', desc: 'Inject a logic bomb into the primary research tables in the Library to overwrite the file index structures.', priority: 'HIGH', priorityColor: '#f59e0b' },
-    SUBMIT_ATTENDANCE: { name: 'Falsify Attendance Records', category: 'Deception', desc: 'Modify attendance logs in the MCA Department to establish a fake alibi for the suspect pool.', priority: 'LOW', priorityColor: '#94a3b8' },
-    CHECK_CCTV: { name: 'Disable Security Cameras', category: 'Sabotage', desc: 'Sabotage the CCTV feed loops in the Security Office, creating a blind spot on the east campus wing.', priority: 'CRITICAL', priorityColor: '#f43f5e' },
-    RETRIEVE_PRINT: { name: 'Intercept Keycard Printout', category: 'Sabotage', desc: 'Steal the printed security override sheets in the Main Block before they reach the guard desk.', priority: 'LOW', priorityColor: '#94a3b8' },
-    RESTOCK_LAB: { name: 'Contaminate Chemical Reagents', category: 'Sabotage', desc: 'Tamper with lab chemical formulas at the Research Center to delay database reconstruction efforts.', priority: 'MEDIUM', priorityColor: '#eab308' },
-    SETUP_AUDITORIUM: { name: 'Rig Stage Lights for Failure', category: 'Sabotage', desc: 'Short-circuit the primary power distribution relay in the Auditorium to force an outage.', priority: 'MEDIUM', priorityColor: '#eab308' },
-    PLACE_LUNCH: { name: 'Poison Staff Cafeteria Food', category: 'Deception', desc: 'Spike cafeteria ingredients to incapacitate guards and slow down investigator search routines.', priority: 'LOW', priorityColor: '#94a3b8' }
+    INJECT_MALWARE: { name: 'Inject Malware into Server', category: 'Sabotage', desc: 'Deploy a polymorphic malware payload on the Computer Lab server to corrupt digital evidence and cover your tracks.', priority: 'CRITICAL', priorityColor: '#f43f5e' },
+    FORGE_ACCESS_BADGE: { name: 'Forge Security Access Badge', category: 'Deception', desc: 'Fabricate a counterfeit security badge at the Main Block to frame an innocent player with unauthorized access records.', priority: 'HIGH', priorityColor: '#f59e0b' },
+    SCRAMBLE_COMMS: { name: 'Scramble Communication Channels', category: 'Sabotage', desc: 'Disrupt encrypted communication frequencies at the Security Office to prevent investigators from coordinating.', priority: 'HIGH', priorityColor: '#f59e0b' },
+  },
+  CONSPIRATOR: {
+    SHRED_EVIDENCE: { name: 'Shred Physical Evidence Logs', category: 'Cover-up', desc: 'Destroy physical evidence logs stored in the Library before investigators can catalog and cross-reference them.', priority: 'CRITICAL', priorityColor: '#f43f5e' },
+    WIPE_BACKUP_DRIVE: { name: 'Wipe Backup Hard Drive', category: 'Sabotage', desc: 'Securely erase forensic backup drives at the Research Center to eliminate any recoverable digital evidence.', priority: 'HIGH', priorityColor: '#f59e0b' },
+    PLANT_DIVERSION: { name: 'Plant Diversionary Device', category: 'Deception', desc: 'Set up a diversionary device in the Cafeteria to create chaos and draw investigators away from key evidence areas.', priority: 'MEDIUM', priorityColor: '#eab308' },
   }
 }
 
 const TASK_ICONS = {
-  REPAIR_NETWORK: Wrench,
-  ARCHIVE_FILES: Folder,
-  SUBMIT_ATTENDANCE: Clipboard,
-  CHECK_CCTV: Video,
-  RETRIEVE_PRINT: Printer,
-  RESTOCK_LAB: FlaskConical,
-  SETUP_AUDITORIUM: Tv,
-  PLACE_LUNCH: Utensils,
+  // Detective
+  ANALYZE_CCTV: Video,
+  AUDIT_SERVER_LOGS: Clipboard,
+  DECRYPT_SCHEMATICS: Zap,
+  // Investigator
+  CATALOG_EVIDENCE: Folder,
+  SCAN_FINGERPRINTS: Target,
+  TRACE_SIGNAL: Tv,
+  // Mastermind
+  INJECT_MALWARE: AlertCircle,
+  FORGE_ACCESS_BADGE: Printer,
+  SCRAMBLE_COMMS: Wrench,
+  // Conspirator
+  SHRED_EVIDENCE: XCircle,
+  WIPE_BACKUP_DRIVE: FlaskConical,
+  PLANT_DIVERSION: Utensils,
 }
 
 function TaskItemCard({ task, isExpanded, onToggleExpand, activeTaskId, setActiveTask, distance, role, inConsole, onActionClose }) {

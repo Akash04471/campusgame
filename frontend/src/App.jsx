@@ -351,9 +351,9 @@ export default function App() {
         { ability_id: 'CORRELATE_EVIDENCE',name:'Correlate Evidence',          description: 'Link two pieces of evidence on the Evidence Board', location_required: null,           duration_seconds: 0,  cooldown_remaining: 0, is_on_cooldown: false, uses_remaining: 10, max_uses: 10 },
       ])
       setTasks([
-        { task_id: 'task_1', name: 'Repair Server Network',     location: 'Computer Lab',    task_type: 'REPAIR_NETWORK',  progress: 0, completed: false, points: 20 },
-        { task_id: 'task_2', name: 'Archive Department Records',location: 'MCA Department',  task_type: 'ARCHIVE_FILES',   progress: 0, completed: false, points: 15 },
-        { task_id: 'task_3', name: 'Check Security Cameras',    location: 'Security Office', task_type: 'CHECK_CCTV',      progress: 0, completed: false, points: 10 },
+        { task_id: 'task_1', name: 'Analyze CCTV Surveillance Feeds', location: 'Security Office', task_type: 'ANALYZE_CCTV',       progress: 0, completed: false, points: 25 },
+        { task_id: 'task_2', name: 'Audit Server Access Logs',        location: 'Computer Lab',    task_type: 'AUDIT_SERVER_LOGS',  progress: 0, completed: false, points: 20 },
+        { task_id: 'task_3', name: 'Decrypt Encrypted Schematics',    location: 'Research Center', task_type: 'DECRYPT_SCHEMATICS', progress: 0, completed: false, points: 30 },
       ])
       setWorldEvidence([
         { evidence_id: 'ev_0', evidence_type: 'PHYSICAL',    area_found: 'Junior College', position: { x: 0, y: 0.9, z: -32 }, description: 'Discarded keycard fragment found near entrance.', points_to_player_id: '9001', reliability_score: 0.85 },

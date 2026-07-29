@@ -15,182 +15,133 @@ AREA_WORLD_POSITIONS: Dict[str, tuple] = {
 }
 
 # Role-specific task definitions
-# Guarantees role alignment and distinct character responsibilities
-TASK_DEFINITIONS = [
-    # 🔍 DETECTIVE TASKS
-    {
-        'task_type': 'CHECK_CCTV',
-        'name': 'Analyze CCTV Surveillance Feeds',
-        'location': 'Security Office',
-        'duration_seconds': 45,
-        'points': 20,
-        'role_restricted': 'DETECTIVE',
-    },
-    {
-        'task_type': 'AUDIT_LOGS',
-        'name': 'Audit Server System Access Logs',
-        'location': 'Computer Lab',
-        'duration_seconds': 40,
-        'points': 18,
-        'role_restricted': 'DETECTIVE',
-    },
-    {
-        'task_type': 'DECRYPT_FILES',
-        'name': 'Decrypt Encrypted Schematics',
-        'location': 'Research Center',
-        'duration_seconds': 50,
-        'points': 25,
-        'role_restricted': 'DETECTIVE',
-    },
-    {
-        'task_type': 'INTERROGATE_RECORDS',
-        'name': 'Review Witness Interview Records',
-        'location': 'Main Block',
-        'duration_seconds': 35,
-        'points': 15,
-        'role_restricted': 'DETECTIVE',
-    },
+# Each role has exactly 3 unique tasks. No task_type is shared between roles.
+# Each role's 3 tasks map to 3 different minigame variants (wire, valve, hold).
+TASK_DEFINITIONS = {
+    # 🔍 DETECTIVE — Investigation & Analysis tasks
+    'DETECTIVE': [
+        {
+            'task_type': 'ANALYZE_CCTV',
+            'name': 'Analyze CCTV Surveillance Feeds',
+            'location': 'Security Office',
+            'duration_seconds': 45,
+            'points': 25,
+            'role_restricted': 'DETECTIVE',
+        },
+        {
+            'task_type': 'AUDIT_SERVER_LOGS',
+            'name': 'Audit Server Access Logs',
+            'location': 'Computer Lab',
+            'duration_seconds': 40,
+            'points': 20,
+            'role_restricted': 'DETECTIVE',
+        },
+        {
+            'task_type': 'DECRYPT_SCHEMATICS',
+            'name': 'Decrypt Encrypted Schematics',
+            'location': 'Research Center',
+            'duration_seconds': 50,
+            'points': 30,
+            'role_restricted': 'DETECTIVE',
+        },
+    ],
 
-    # 🧩 INVESTIGATOR TASKS
-    {
-        'task_type': 'REPAIR_NETWORK',
-        'name': 'Repair Network Terminal',
-        'location': 'Computer Lab',
-        'duration_seconds': 35,
-        'points': 12,
-        'role_restricted': 'INVESTIGATOR',
-    },
-    {
-        'task_type': 'ARCHIVE_FILES',
-        'name': 'Archive Campus Research Files',
-        'location': 'Library',
-        'duration_seconds': 40,
-        'points': 15,
-        'role_restricted': 'INVESTIGATOR',
-    },
-    {
-        'task_type': 'SUBMIT_ATTENDANCE',
-        'name': 'Submit Attendance Records',
-        'location': 'MCA Department',
-        'duration_seconds': 25,
-        'points': 10,
-        'role_restricted': 'INVESTIGATOR',
-    },
-    {
-        'task_type': 'RESTOCK_LAB',
-        'name': 'Restock Lab Supplies',
-        'location': 'Research Center',
-        'duration_seconds': 30,
-        'points': 10,
-        'role_restricted': 'INVESTIGATOR',
-    },
-    {
-        'task_type': 'SETUP_AUDITORIUM',
-        'name': 'Set Up Auditorium Equipment',
-        'location': 'Auditorium',
-        'duration_seconds': 35,
-        'points': 12,
-        'role_restricted': 'INVESTIGATOR',
-    },
-    {
-        'task_type': 'RETRIEVE_PRINT',
-        'name': 'Retrieve Print Job',
-        'location': 'Main Block',
-        'duration_seconds': 20,
-        'points': 8,
-        'role_restricted': 'INVESTIGATOR',
-    },
-    {
-        'task_type': 'PLACE_LUNCH',
-        'name': 'Place Lunch Order',
-        'location': 'Cafeteria',
-        'duration_seconds': 15,
-        'points': 5,
-        'role_restricted': 'INVESTIGATOR',
-    },
+    # 🧩 INVESTIGATOR — Field Forensics & Evidence tasks
+    'INVESTIGATOR': [
+        {
+            'task_type': 'CATALOG_EVIDENCE',
+            'name': 'Catalog Physical Evidence',
+            'location': 'Library',
+            'duration_seconds': 40,
+            'points': 20,
+            'role_restricted': 'INVESTIGATOR',
+        },
+        {
+            'task_type': 'SCAN_FINGERPRINTS',
+            'name': 'Scan Fingerprint Database',
+            'location': 'MCA Department',
+            'duration_seconds': 35,
+            'points': 18,
+            'role_restricted': 'INVESTIGATOR',
+        },
+        {
+            'task_type': 'TRACE_SIGNAL',
+            'name': 'Trace Radio Signal Source',
+            'location': 'Auditorium',
+            'duration_seconds': 45,
+            'points': 22,
+            'role_restricted': 'INVESTIGATOR',
+        },
+    ],
 
-    # 🧠 MASTERMIND TASKS (Sabotage)
-    {
-        'task_type': 'INJECT_VIRUS',
-        'name': 'Inject Server Virus Exploits',
-        'location': 'Computer Lab',
-        'duration_seconds': 40,
-        'points': 0,
-        'role_restricted': 'MASTERMIND',
-    },
-    {
-        'task_type': 'TAMPER_CCTV',
-        'name': 'Tamper Surveillance Cameras',
-        'location': 'Security Office',
-        'duration_seconds': 45,
-        'points': 0,
-        'role_restricted': 'MASTERMIND',
-    },
-    {
-        'task_type': 'SCRAMBLE_BADGES',
-        'name': 'Scramble Keycard Authorizations',
-        'location': 'Main Block',
-        'duration_seconds': 30,
-        'points': 0,
-        'role_restricted': 'MASTERMIND',
-    },
-    {
-        'task_type': 'PLANT_COVER_STORY',
-        'name': 'Plant Cover Story Logs',
-        'location': 'MCA Department',
-        'duration_seconds': 35,
-        'points': 0,
-        'role_restricted': 'MASTERMIND',
-    },
+    # 🧠 MASTERMIND — Sabotage & Disruption tasks
+    'MASTERMIND': [
+        {
+            'task_type': 'INJECT_MALWARE',
+            'name': 'Inject Malware into Server',
+            'location': 'Computer Lab',
+            'duration_seconds': 40,
+            'points': 0,
+            'role_restricted': 'MASTERMIND',
+        },
+        {
+            'task_type': 'FORGE_ACCESS_BADGE',
+            'name': 'Forge Security Access Badge',
+            'location': 'Main Block',
+            'duration_seconds': 35,
+            'points': 0,
+            'role_restricted': 'MASTERMIND',
+        },
+        {
+            'task_type': 'SCRAMBLE_COMMS',
+            'name': 'Scramble Communication Channels',
+            'location': 'Security Office',
+            'duration_seconds': 45,
+            'points': 0,
+            'role_restricted': 'MASTERMIND',
+        },
+    ],
 
-    # 🔪 CONSPIRATOR TASKS (Sabotage)
-    {
-        'task_type': 'SHRED_LOGS',
-        'name': 'Shred Physical Evidence Logs',
-        'location': 'Library',
-        'duration_seconds': 35,
-        'points': 0,
-        'role_restricted': 'CONSPIRATOR',
-    },
-    {
-        'task_type': 'WIPE_DRIVE',
-        'name': 'Wipe Backup Hard Drive',
-        'location': 'Research Center',
-        'duration_seconds': 40,
-        'points': 0,
-        'role_restricted': 'CONSPIRATOR',
-    },
-    {
-        'task_type': 'LOCK_DOOR',
-        'name': 'Lock Down Security Door Nodes',
-        'location': 'Auditorium',
-        'duration_seconds': 30,
-        'points': 0,
-        'role_restricted': 'CONSPIRATOR',
-    },
-    {
-        'task_type': 'DISTRACT_GUARD',
-        'name': 'Distract Campus Guard',
-        'location': 'Cafeteria',
-        'duration_seconds': 25,
-        'points': 0,
-        'role_restricted': 'CONSPIRATOR',
-    },
-]
+    # 🔪 CONSPIRATOR — Sabotage & Cover-up tasks
+    'CONSPIRATOR': [
+        {
+            'task_type': 'SHRED_EVIDENCE',
+            'name': 'Shred Physical Evidence Logs',
+            'location': 'Library',
+            'duration_seconds': 35,
+            'points': 0,
+            'role_restricted': 'CONSPIRATOR',
+        },
+        {
+            'task_type': 'WIPE_BACKUP_DRIVE',
+            'name': 'Wipe Backup Hard Drive',
+            'location': 'Research Center',
+            'duration_seconds': 40,
+            'points': 0,
+            'role_restricted': 'CONSPIRATOR',
+        },
+        {
+            'task_type': 'PLANT_DIVERSION',
+            'name': 'Plant Diversionary Device',
+            'location': 'Cafeteria',
+            'duration_seconds': 30,
+            'points': 0,
+            'role_restricted': 'CONSPIRATOR',
+        },
+    ],
+}
 
 VILLAIN_ROLES = {'MASTERMIND', 'CONSPIRATOR'}
 
 SABOTAGE_EFFECTS = {
-    'INJECT_VIRUS':      {'effect': 'CORRUPT_EVIDENCE', 'area': 'Computer Lab', 'description': 'A keylogger corrupts nearby digital evidence.'},
-    'TAMPER_CCTV':       {'effect': 'CORRUPT_EVIDENCE', 'area': 'Security Office', 'description': 'Camera feeds are wiped; a digital evidence item is destroyed.'},
-    'SCRAMBLE_BADGES':   {'effect': 'NPC_SUSPICION_SHIFT', 'area': 'Main Block', 'description': 'Intercepted keycard printout implicates an innocent.'},
-    'PLANT_COVER_STORY': {'effect': 'NPC_SUSPICION_SHIFT', 'area': 'MCA Department', 'description': 'Falsified records deflect NPC suspicion to an innocent.'},
-    'SHRED_LOGS':        {'effect': 'CORRUPT_EVIDENCE', 'area': 'Library', 'description': 'Research database corruption wipes an evidence trail.'},
-    'WIPE_DRIVE':        {'effect': 'CORRUPT_EVIDENCE', 'area': 'Research Center', 'description': 'Drive wipe destroys physical/digital evidence.'},
-    'LOCK_DOOR':         {'effect': 'NPC_SUSPICION_SHIFT', 'area': 'Auditorium', 'description': 'Rigged lights cause panic; NPCs misremember who was present.'},
-    'DISTRACT_GUARD':    {'effect': 'NPC_SUSPICION_SHIFT', 'area': 'Cafeteria', 'description': 'Food tampering incident draws attention away from the villains.'},
-    'REPAIR_NETWORK':    {'effect': 'CORRUPT_EVIDENCE', 'area': 'Computer Lab', 'description': 'Corrupts evidence in Computer Lab.'},
-    'ARCHIVE_FILES':     {'effect': 'CORRUPT_EVIDENCE', 'area': 'Library', 'description': 'Corrupts evidence in Library.'},
+    # Mastermind sabotage effects
+    'INJECT_MALWARE':      {'effect': 'CORRUPT_EVIDENCE', 'area': 'Computer Lab', 'description': 'A keylogger corrupts nearby digital evidence.'},
+    'FORGE_ACCESS_BADGE':  {'effect': 'NPC_SUSPICION_SHIFT', 'area': 'Main Block', 'description': 'Forged badge implicates an innocent player.'},
+    'SCRAMBLE_COMMS':      {'effect': 'CORRUPT_EVIDENCE', 'area': 'Security Office', 'description': 'Scrambled comms destroy surveillance evidence.'},
+    # Conspirator sabotage effects
+    'SHRED_EVIDENCE':      {'effect': 'CORRUPT_EVIDENCE', 'area': 'Library', 'description': 'Shredded logs destroy physical evidence trails.'},
+    'WIPE_BACKUP_DRIVE':   {'effect': 'CORRUPT_EVIDENCE', 'area': 'Research Center', 'description': 'Drive wipe destroys forensic backup data.'},
+    'PLANT_DIVERSION':     {'effect': 'NPC_SUSPICION_SHIFT', 'area': 'Cafeteria', 'description': 'Diversionary device draws attention away from villains.'},
 }
 
 
@@ -234,46 +185,18 @@ class TaskManager:
         assignments: Dict[str, str],
     ) -> Dict[str, List[dict]]:
         """
-        Assigns 3 role-specific tasks per player on game start.
-        Guarantees that no two players are assigned the same task simultaneously.
+        Assigns exactly 3 role-specific tasks per player on game start.
+        Each role has its own dedicated pool of 3 tasks in TASK_DEFINITIONS.
         """
         self.room_tasks[room_code] = {}
         result = {}
-        assigned_task_types: Set[str] = set()
 
         for player_id, role in assignments.items():
             is_villain = role in VILLAIN_ROLES
+            role_pool = TASK_DEFINITIONS.get(role, [])
 
-            # 1. Filter tasks restricted to player's specific role (or general Investigator tasks)
-            # that have NOT been assigned to any other player in the room yet.
-            role_eligible = [
-                t for t in TASK_DEFINITIONS
-                if t['task_type'] not in assigned_task_types
-                and (
-                    t['role_restricted'] == role or
-                    (t['role_restricted'] is None and role == 'INVESTIGATOR') or
-                    (t['role_restricted'] == 'INVESTIGATOR' and role == 'INVESTIGATOR')
-                )
-            ]
-
-            # 2. Fallback to any remaining unassigned task if role-specific pool is less than 3
-            if len(role_eligible) < 3:
-                other_unassigned = [
-                    t for t in TASK_DEFINITIONS
-                    if t['task_type'] not in assigned_task_types
-                    and t not in role_eligible
-                ]
-                role_eligible.extend(other_unassigned)
-
-            # 3. Select up to 3 distinct tasks for this player
-            selected_count = min(3, len(role_eligible))
-            selected = random.sample(role_eligible, selected_count)
-
-            # Mark selected task types as assigned globally across the room
-            for t in selected:
-                assigned_task_types.add(t['task_type'])
-
-            player_tasks = [PlayerTask(d, is_sabotage=is_villain) for d in selected]
+            # Each role has exactly 3 tasks — assign all of them
+            player_tasks = [PlayerTask(d, is_sabotage=is_villain) for d in role_pool]
             self.room_tasks[room_code][player_id] = player_tasks
             result[player_id] = [t.to_dict() for t in player_tasks]
 
