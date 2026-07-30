@@ -333,16 +333,22 @@ const useGameStore = create((set, get) => ({
     }
     if (roomCode && authToken) {
       try {
-        const host = window.location.hostname === 'localhost' ? 'localhost:8000' : window.location.host
-        const protocol = window.location.protocol === 'https:' ? 'https' : 'http'
-        await fetch(`${protocol}://${host}/api/v1/lobby/leave/${roomCode}`, {
+        const rawApiUrl = import.meta.env.VITE_API_URL
+        const apiBase = rawApiUrl
+          ? rawApiUrl.replace(/\/$/, '')
+          : `${window.location.protocol}//${window.location.hostname}:8000`
+        await fetch(`${apiBase}/api/v1/lobby/leave/${roomCode}`, {
           method: 'POST',
-          headers: { 'Authorization': `Bearer ${authToken}` }
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          }
         })
       } catch (e) {
         console.warn('Leave room HTTP API error:', e)
       }
     }
+
     set({
       roomCode: null,
       gamePhase: 'loading',

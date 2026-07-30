@@ -735,10 +735,10 @@ export default function Player() {
       const task = tasks.find(t => t.location === nearest && !t.completed)
       if (task) {
         const now = Date.now()
-        if (ws && now - lastTaskSentRef.current > 200) {
+        if (ws && ws.readyState === WebSocket.OPEN && now - lastTaskSentRef.current > 200) {
           ws.send(JSON.stringify({ action: 'TASK_PROGRESS', task_id: task.task_id, delta: 0.05 }))
           lastTaskSentRef.current = now
-        } else if (!ws) {
+        } else if (!ws || ws.readyState !== WebSocket.OPEN) {
           const next = Math.min(1, (task.progress || 0) + delta * 0.25)
           updateTask({ ...task, progress: next, completed: next >= 1 })
         }
@@ -747,7 +747,7 @@ export default function Player() {
 
     // Send movement to server
     movSendTimer.current += delta
-    if (ws && movSendTimer.current > 0.1) {
+    if (ws && ws.readyState === WebSocket.OPEN && movSendTimer.current > 0.1) {
       movSendTimer.current = 0
       ws.send(JSON.stringify({
         action: 'PLAYER_MOVE',
@@ -756,6 +756,7 @@ export default function Player() {
         area: nearest || '',
       }))
     }
+
   })
 
   return (
