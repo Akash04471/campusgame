@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Stars } from '@react-three/drei'
+import { gsap } from 'gsap'
 import useGameStore from '../../store/gameStore'
 
 /* ─────────────────────────────────────────────
@@ -29,7 +30,6 @@ const API_BASE = rawApiUrl
   ? rawApiUrl.replace(/\/$/, '')
   : `${window.location.protocol}//${window.location.hostname}:8000`
 
-
 /* ─────────────────────────────────────────────
    HELPER — API
    ───────────────────────────────────────────── */
@@ -39,22 +39,22 @@ async function apiFetch(path, opts = {}, token = null) {
   const res = await fetch(`${API_BASE}${path}`, { ...opts, headers })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
-    let errMsg = `HTTP ${res.status}`;
-    const detail = data.detail;
+    let errMsg = `HTTP ${res.status}`
+    const detail = data.detail
     if (typeof detail === 'string') {
-      errMsg = detail;
+      errMsg = detail
     } else if (Array.isArray(detail)) {
-      errMsg = detail.map(d => `${d.loc ? d.loc.join('.') + ': ' : ''}${d.msg}`).join(', ');
+      errMsg = detail.map(d => `${d.loc ? d.loc.join('.') + ': ' : ''}${d.msg}`).join(', ')
     } else if (detail && typeof detail === 'object') {
-      errMsg = detail.message || JSON.stringify(detail);
+      errMsg = detail.message || JSON.stringify(detail)
     }
-    throw new Error(errMsg);
+    throw new Error(errMsg)
   }
   return data
 }
 
 /* ─────────────────────────────────────────────
-   HOOK — Ambient Web Audio synth drone
+   HOOK — Ambient Web Audio synth drone & blips
    ───────────────────────────────────────────── */
 function useAmbientAudio() {
   const [muted, setMuted] = useState(true)
@@ -92,48 +92,127 @@ function useAmbientAudio() {
     }
   }, [muted])
 
+  const playBlip = useCallback(() => {
+    if (muted || !ctx.current) return
+    try {
+      const ac = ctx.current
+      const osc = ac.createOscillator()
+      const g = ac.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(880, ac.currentTime)
+      osc.frequency.exponentialRampToValueAtTime(440, ac.currentTime + 0.08)
+      g.gain.setValueAtTime(0.08, ac.currentTime)
+      g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.08)
+      osc.connect(g)
+      g.connect(ac.destination)
+      osc.start()
+      osc.stop(ac.currentTime + 0.08)
+    } catch {}
+  }, [muted])
+
   useEffect(() => () => {
     try { nodes.current.o1?.stop(); nodes.current.o2?.stop(); ctx.current?.close() } catch {}
   }, [])
 
-  return { muted, toggle }
+  return { muted, toggle, playBlip }
 }
 
 /* ─────────────────────────────────────────────
-   COMPONENT — Custom Cursor
+   HOOK — prefers-reduced-motion
+   ───────────────────────────────────────────── */
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(
+    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const handler = (e) => setReduced(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+  return reduced
+}
+
+/* ─────────────────────────────────────────────
+   COMPONENT — Custom Cursor (GSAP quickTo + magnetic)
    ───────────────────────────────────────────── */
 function CursorGlow() {
   const dotRef = useRef(null)
   const haloRef = useRef(null)
-  const pos = useRef({ x: 0, y: 0 })
-  const haloPos = useRef({ x: 0, y: 0 })
-  const raf = useRef(null)
+  const reducedMotion = usePrefersReducedMotion()
 
   useEffect(() => {
-    const move = (e) => { pos.current = { x: e.clientX, y: e.clientY } }
-    window.addEventListener('mousemove', move)
-    const animate = () => {
-      if (dotRef.current) {
-        dotRef.current.style.transform = `translate(${pos.current.x - 4}px, ${pos.current.y - 4}px)`
-      }
-      haloPos.current.x += (pos.current.x - haloPos.current.x) * 0.1
-      haloPos.current.y += (pos.current.y - haloPos.current.y) * 0.1
-      if (haloRef.current) {
-        haloRef.current.style.transform = `translate(${haloPos.current.x - 40}px, ${haloPos.current.y - 40}px)`
-      }
-      raf.current = requestAnimationFrame(animate)
+    if (reducedMotion) return
+
+    const dot = dotRef.current
+    const halo = haloRef.current
+    if (!dot || !halo) return
+
+    const moveDotX  = gsap.quickTo(dot,  'x', { duration: 0.1, ease: 'power3' })
+    const moveDotY  = gsap.quickTo(dot,  'y', { duration: 0.1, ease: 'power3' })
+    const moveHaloX = gsap.quickTo(halo, 'x', { duration: 0.45, ease: 'power3' })
+    const moveHaloY = gsap.quickTo(halo, 'y', { duration: 0.45, ease: 'power3' })
+
+    const onMove = (e) => {
+      moveDotX(e.clientX - 4)
+      moveDotY(e.clientY - 4)
+      moveHaloX(e.clientX - 40)
+      moveHaloY(e.clientY - 40)
     }
-    raf.current = requestAnimationFrame(animate)
-    const grow = () => haloRef.current?.classList.add('cu-cursor-grow')
-    const shrink = () => haloRef.current?.classList.remove('cu-cursor-grow')
+    window.addEventListener('mousemove', onMove)
+
+    const grow   = () => { halo.classList.add('cu-cursor-grow');   halo.classList.add('cu-cursor-diff') }
+    const shrink = () => { halo.classList.remove('cu-cursor-grow'); halo.classList.remove('cu-cursor-diff') }
     const interactives = document.querySelectorAll('button, a, [data-hover]')
-    interactives.forEach(el => { el.addEventListener('mouseenter', grow); el.addEventListener('mouseleave', shrink) })
-    return () => { window.removeEventListener('mousemove', move); cancelAnimationFrame(raf.current) }
-  }, [])
+    interactives.forEach(el => {
+      el.addEventListener('mouseenter', grow)
+      el.addEventListener('mouseleave', shrink)
+    })
+
+    const magnetBtns = document.querySelectorAll('[data-magnetic]')
+    const magnetCleanups = []
+    magnetBtns.forEach(btn => {
+      const label = btn.querySelector('[data-magnetic-label]')
+      const RADIUS = 120
+
+      const onEnter = (e) => {
+        const r = btn.getBoundingClientRect()
+        const dx = e.clientX - (r.left + r.width  / 2)
+        const dy = e.clientY - (r.top  + r.height / 2)
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        if (dist < RADIUS) {
+          const strength = (1 - dist / RADIUS) * 16
+          gsap.to(btn,   { x: dx * strength * 0.1, y: dy * strength * 0.1, duration: 0.3, ease: 'power2.out' })
+          if (label) gsap.to(label, { x: dx * strength * 0.15, y: dy * strength * 0.15, duration: 0.3, ease: 'power2.out' })
+        }
+      }
+      const onLeave = () => {
+        gsap.to(btn,   { x: 0, y: 0, duration: 0.7, ease: 'elastic.out(1, 0.4)' })
+        if (label) gsap.to(label, { x: 0, y: 0, duration: 0.7, ease: 'elastic.out(1, 0.4)' })
+      }
+      btn.addEventListener('mousemove',  onEnter)
+      btn.addEventListener('mouseleave', onLeave)
+      magnetCleanups.push(() => {
+        btn.removeEventListener('mousemove',  onEnter)
+        btn.removeEventListener('mouseleave', onLeave)
+      })
+    })
+
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      interactives.forEach(el => {
+        el.removeEventListener('mouseenter', grow)
+        el.removeEventListener('mouseleave', shrink)
+      })
+      magnetCleanups.forEach(fn => fn())
+    }
+  }, [reducedMotion])
+
+  if (reducedMotion) return null
 
   return (
     <>
-      <div ref={dotRef} className="cu-cursor-dot" />
+      <div ref={dotRef}  className="cu-cursor-dot" />
       <div ref={haloRef} className="cu-cursor-halo" />
     </>
   )
@@ -142,15 +221,15 @@ function CursorGlow() {
 /* ─────────────────────────────────────────────
    COMPONENT — Loading Gate (cinematic intro)
    ───────────────────────────────────────────── */
-const TITLE_CHARS = 'CAMPUS GAME'.split('')
+const TITLE_CHARS = 'CAMPUS UNDERCOVER'.split('')
 
 function LoadingGate({ onDone }) {
   const [phase, setPhase] = useState('typing')
   const [visible, setVisible] = useState(true)
 
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase('wiping'), 2400)
-    const t2 = setTimeout(() => { setVisible(false); onDone() }, 3200)
+    const t1 = setTimeout(() => setPhase('wiping'), 2200)
+    const t2 = setTimeout(() => { setVisible(false); onDone() }, 3000)
     return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [onDone])
 
@@ -168,7 +247,7 @@ function LoadingGate({ onDone }) {
         </div>
         <h1 className="cu-gate-title">
           {TITLE_CHARS.map((ch, i) => (
-            <span key={i} className="cu-gate-char" style={{ animationDelay: `${i * 60}ms` }}>
+            <span key={i} className="cu-gate-char" style={{ animationDelay: `${i * 50}ms` }}>
               {ch === ' ' ? '\u00A0' : ch}
             </span>
           ))}
@@ -184,102 +263,258 @@ function LoadingGate({ onDone }) {
 }
 
 /* ─────────────────────────────────────────────
-   COMPONENT — Unsplash Background Crossfade
-   Curated dark campus/mystery images
+   COMPONENT — Cinematic Video Background
    ───────────────────────────────────────────── */
-const BG_IMAGES = [
-  'https://images.unsplash.com/photo-1562774053-701939374585?w=1920&q=80', // dark university campus
-  'https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?w=1920&q=80', // dark corridor hallway
-  'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1920&q=80', // university building night
-  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1920&q=80', // dark moody atmosphere
-  'https://images.unsplash.com/photo-1516912481808-3406841bd33c?w=1920&q=80', // mystery dark
-]
-
-function UnsplashBackground() {
-  const [current, setCurrent] = useState(0)
-  const [next, setNext] = useState(1)
-  const [fading, setFading] = useState(false)
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setFading(true)
-      setTimeout(() => {
-        setCurrent(c => (c + 1) % BG_IMAGES.length)
-        setNext(n => (n + 1) % BG_IMAGES.length)
-        setFading(false)
-      }, 1500)
-    }, 7000)
-    return () => clearInterval(interval)
-  }, [])
-
+function CinematicVideoBackground({ bgRef }) {
   return (
-    <div className="cu-unsplash-bg">
-      {/* Current image */}
-      <div
-        className={`cu-bg-layer cu-bg-layer-current ${fading ? 'cu-bg-layer-fade' : ''}`}
-        style={{ backgroundImage: `url(${BG_IMAGES[current]})` }}
+    <div ref={bgRef} className="cu-video-bg">
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="cu-video-element"
+        src="/LANDING_PAGE_VIDEO.mp4"
       />
-      {/* Next image preloaded */}
-      <div
-        className={`cu-bg-layer cu-bg-layer-next ${fading ? 'cu-bg-layer-next-show' : ''}`}
-        style={{ backgroundImage: `url(${BG_IMAGES[next]})` }}
-      />
-      {/* Multi-layer darkening overlay */}
       <div className="cu-bg-overlay-dark" />
       <div className="cu-bg-overlay-gradient" />
       <div className="cu-bg-overlay-vignette" />
-      {/* Animated scanlines */}
       <div className="cu-bg-scanlines" />
-      {/* Noise grain */}
       <div className="cu-bg-grain" />
     </div>
   )
 }
 
 /* ─────────────────────────────────────────────
-   COMPONENT — Floating Particle Dust
+   COMPONENT — R3F Peripheral Scene
    ───────────────────────────────────────────── */
-function FloatingParticles() {
-  const particles = Array.from({ length: 28 }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    size: 1 + Math.random() * 2.5,
-    duration: 8 + Math.random() * 14,
-    delay: Math.random() * 12,
-    opacity: 0.15 + Math.random() * 0.45,
-  }))
+function HeroR3FScene() {
+  const meshRef = useRef()
+  const count = 600
+  const positions = useMemo(() => {
+    const arr = new Float32Array(count * 3)
+    for (let i = 0; i < count; i++) {
+      arr[i * 3]     = (Math.random() - 0.5) * 80
+      arr[i * 3 + 1] = (Math.random() - 0.5) * 40
+      arr[i * 3 + 2] = (Math.random() - 0.5) * 60
+    }
+    return arr
+  }, [])
+
+  useFrame((_, delta) => {
+    if (meshRef.current) {
+      meshRef.current.rotation.y += delta * 0.04
+      meshRef.current.rotation.x += delta * 0.015
+    }
+  })
 
   return (
-    <div className="cu-particles">
-      {particles.map(p => (
-        <div
-          key={p.id}
-          className="cu-particle"
-          style={{
-            left: `${p.x}%`,
-            top: `${p.y}%`,
-            width: p.size,
-            height: p.size,
-            opacity: p.opacity,
-            animationDuration: `${p.duration}s`,
-            animationDelay: `${p.delay}s`,
-          }}
-        />
-      ))}
-    </div>
+    <>
+      <Stars radius={120} depth={60} count={600} factor={2.5} saturation={0} fade speed={0.25} />
+      <points ref={meshRef}>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            count={count}
+            array={positions}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <pointsMaterial size={0.12} color="#00f2fe" transparent opacity={0.45} sizeAttenuation />
+      </points>
+      <ambientLight intensity={0.05} />
+    </>
   )
 }
 
 /* ─────────────────────────────────────────────
-   COMPONENT — R3F Peripheral Scene (Stars only)
+   COMPONENT — Eerie Canvas Background
    ───────────────────────────────────────────── */
-function HeroR3FScene() {
+function EerieCanvasBackground({ containerRef }) {
+  const canvasRef = useRef(null)
+  const rafRef    = useRef(null)
+  const mouseRef  = useRef({ x: -9999, y: -9999 })
+  const reducedMotion = usePrefersReducedMotion()
+
+  useEffect(() => {
+    if (reducedMotion) return
+
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+
+    const resize = () => {
+      canvas.width  = canvas.offsetWidth
+      canvas.height = canvas.offsetHeight
+    }
+    resize()
+    const ro = new ResizeObserver(resize)
+    ro.observe(canvas)
+
+    const container = containerRef?.current || canvas
+    const onMouse = (e) => {
+      const r = canvas.getBoundingClientRect()
+      mouseRef.current = { x: e.clientX - r.left, y: e.clientY - r.top }
+    }
+    const onLeave = () => { mouseRef.current = { x: -9999, y: -9999 } }
+    container.addEventListener('mousemove', onMouse)
+    container.addEventListener('mouseleave', onLeave)
+
+    const makeFog = (W, H) => Array.from({ length: 45 }, () => ({
+      x:   Math.random() * W,
+      y:   H * 0.4 + Math.random() * H * 0.6,
+      r:   80 + Math.random() * 180,
+      vx:  (Math.random() - 0.5) * 0.35,
+      vy:  -0.04 - Math.random() * 0.08,
+      opacity: 0.015 + Math.random() * 0.035,
+      phase:   Math.random() * Math.PI * 2,
+    }))
+    let fog = makeFog(canvas.width, canvas.height)
+
+    const makeRain = (W, H) => Array.from({ length: 80 }, () => ({
+      x:     Math.random() * (W + 200) - 100,
+      y:     Math.random() * H,
+      len:   10 + Math.random() * 20,
+      speed: 7 + Math.random() * 9,
+      opacity: 0.02 + Math.random() * 0.05,
+    }))
+    let rain = makeRain(canvas.width, canvas.height)
+
+    let lightningCountdown = 200 + Math.floor(Math.random() * 300)
+    let lightningFrames = 0
+    let lightningAlpha  = 0
+    let scanX = 0
+    let t = 0
+
+    const draw = () => {
+      rafRef.current = requestAnimationFrame(draw)
+      t++
+      const W = canvas.width
+      const H = canvas.height
+      if (!W || !H) return
+
+      if (fog[0] && fog[0].r > W * 0.5) { fog = makeFog(W, H); rain = makeRain(W, H) }
+
+      ctx.clearRect(0, 0, W, H)
+
+      const pulse = 0.5 + 0.5 * Math.sin(t * 0.018)
+      const g1 = ctx.createRadialGradient(W / 2, H * 0.55, 0, W / 2, H * 0.55, W * 0.55)
+      g1.addColorStop(0,   `rgba(160,0,0,${0.04 + pulse * 0.06})`)
+      g1.addColorStop(0.5, `rgba(80,0,0,${0.02 + pulse * 0.025})`)
+      g1.addColorStop(1,   'rgba(0,0,0,0)')
+      ctx.fillStyle = g1
+      ctx.fillRect(0, 0, W, H)
+
+      fog.forEach(p => {
+        p.x    += p.vx
+        p.y    += p.vy
+        p.phase += 0.005
+        if (p.x < -p.r * 2)   p.x = W + p.r
+        if (p.x > W + p.r * 2) p.x = -p.r
+        if (p.y < -p.r * 2)   { p.y = H + 10; p.x = Math.random() * W }
+
+        const a = p.opacity * (0.6 + 0.4 * Math.sin(p.phase))
+        const gf = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r)
+        gf.addColorStop(0, `rgba(140,150,170,${a})`)
+        gf.addColorStop(1, 'rgba(0,0,0,0)')
+        ctx.fillStyle = gf
+        ctx.beginPath()
+        ctx.ellipse(p.x, p.y, p.r, p.r * 0.45, 0, 0, Math.PI * 2)
+        ctx.fill()
+      })
+
+      ctx.save()
+      ctx.strokeStyle = 'rgba(140,170,200,0.06)'
+      ctx.lineWidth = 0.6
+      rain.forEach(d => {
+        d.y += d.speed
+        d.x -= d.speed * 0.15
+        if (d.y > H + 30) { d.y = -d.len; d.x = Math.random() * (W + 200) - 100 }
+        ctx.beginPath()
+        ctx.moveTo(d.x, d.y)
+        ctx.lineTo(d.x - d.len * 0.15, d.y + d.len)
+        ctx.globalAlpha = d.opacity
+        ctx.stroke()
+      })
+      ctx.globalAlpha = 1
+      ctx.restore()
+
+      scanX = (scanX + 0.6) % W
+      const sg = ctx.createLinearGradient(scanX - 70, 0, scanX + 3, 0)
+      sg.addColorStop(0, 'rgba(0,255,80,0)')
+      sg.addColorStop(0.6, 'rgba(0,255,80,0.004)')
+      sg.addColorStop(1, 'rgba(0,255,80,0.015)')
+      ctx.fillStyle = sg
+      ctx.fillRect(scanX - 70, 0, 73, H)
+
+      lightningCountdown--
+      if (lightningCountdown <= 0 && lightningFrames === 0) {
+        lightningFrames = 2 + Math.floor(Math.random() * 4)
+        lightningAlpha  = 0.12 + Math.random() * 0.15
+        lightningCountdown = 240 + Math.floor(Math.random() * 360)
+      }
+      if (lightningFrames > 0) {
+        ctx.fillStyle = `rgba(210,220,255,${lightningAlpha})`
+        ctx.fillRect(0, 0, W, H)
+        lightningFrames--
+      }
+
+      const { x: mx, y: my } = mouseRef.current
+      if (mx > 0 && mx < W) {
+        const srcX = W / 2, srcY = H * 0.95
+        const angle = Math.atan2(my - srcY, mx - srcX)
+        const coneLen = Math.max(W, H) * 0.8
+        const coneAngle = Math.PI / 10
+        ctx.save()
+        const coneGrad = ctx.createRadialGradient(srcX, srcY, 0, srcX, srcY, coneLen)
+        coneGrad.addColorStop(0,   'rgba(0,242,254,0.08)')
+        coneGrad.addColorStop(0.5, 'rgba(0,242,254,0.02)')
+        coneGrad.addColorStop(1,   'rgba(0,0,0,0)')
+        ctx.beginPath()
+        ctx.moveTo(srcX, srcY)
+        ctx.arc(srcX, srcY, coneLen, angle - coneAngle, angle + coneAngle)
+        ctx.closePath()
+        ctx.fillStyle = coneGrad
+        ctx.fill()
+        ctx.restore()
+      }
+
+      if (t % 2 === 0) {
+        ctx.save()
+        for (let i = 0; i < 1400; i++) {
+          ctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.04})`
+          ctx.fillRect(Math.random() * W | 0, Math.random() * H | 0, 1, 1)
+        }
+        ctx.restore()
+      }
+
+      const gbot = ctx.createLinearGradient(0, H * 0.7, 0, H)
+      gbot.addColorStop(0, 'rgba(0,0,0,0)')
+      gbot.addColorStop(1, 'rgba(6,7,10,0.75)')
+      ctx.fillStyle = gbot
+      ctx.fillRect(0, 0, W, H)
+    }
+
+    draw()
+
+    return () => {
+      cancelAnimationFrame(rafRef.current)
+      ro.disconnect()
+      container.removeEventListener('mousemove', onMouse)
+      container.removeEventListener('mouseleave', onLeave)
+    }
+  }, [reducedMotion, containerRef])
+
   return (
-    <>
-      <Stars radius={100} depth={50} count={400} factor={2} saturation={0} fade speed={0.3} />
-      <ambientLight intensity={0.05} />
-    </>
+    <canvas
+      ref={canvasRef}
+      style={{
+        position: 'absolute', inset: 0,
+        width: '100%', height: '100%',
+        zIndex: 1, pointerEvents: 'none',
+        display: reducedMotion ? 'none' : 'block',
+      }}
+    />
   )
 }
 
@@ -289,23 +524,19 @@ function HeroR3FScene() {
 function NavBar({ auth, onBeginInvestigation, muted, onToggleAudio }) {
   return (
     <nav className="cu-nav cu-nav-transparent">
-      <div className="cu-nav-logo">
+      <div className="cu-nav-logo" data-hover>
         <span className="cu-nav-cross">✝</span>
-        <span className="cu-nav-name">CAMPUS GAME</span>
+        <span className="cu-nav-name">CAMPUS UNDERCOVER</span>
         <span className="cu-nav-tag">CLASSIFIED</span>
       </div>
       <div className="cu-nav-actions">
-        <button className="cu-nav-audio-btn" onClick={onToggleAudio} title="Toggle ambient sound">
+        <button className="cu-nav-audio-btn" onClick={onToggleAudio} title="Toggle ambient sound" data-hover>
           {muted ? '🔈' : '🔊'}
         </button>
         {auth ? (
-          <button className="cu-nav-cta" onClick={onBeginInvestigation}>
-            ACCESS HQ
-          </button>
+          <button className="cu-nav-cta" onClick={onBeginInvestigation} data-hover>ACCESS HQ</button>
         ) : (
-          <button className="cu-nav-cta" onClick={onBeginInvestigation}>
-            BEGIN INVESTIGATION
-          </button>
+          <button className="cu-nav-cta" onClick={onBeginInvestigation} data-hover>BEGIN INVESTIGATION</button>
         )}
       </div>
     </nav>
@@ -313,116 +544,242 @@ function NavBar({ auth, onBeginInvestigation, muted, onToggleAudio }) {
 }
 
 /* ─────────────────────────────────────────────
-   COMPONENT — Hero Section (Full Viewport)
+   COMPONENT — Short & Crisp Tactical Intel Strip
    ───────────────────────────────────────────── */
-function HeroSection({ onBeginInvestigation }) {
-  const containerRef = useRef(null)
-  const spotRef = useRef(null)
+function TacticalIntelStrip({ playBlip }) {
+  const [activeChip, setActiveChip] = useState(0)
 
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    const handler = (e) => {
-      const rect = el.getBoundingClientRect()
-      const x = e.clientX - rect.left
-      const y = e.clientY - rect.top
-      if (spotRef.current) {
-        spotRef.current.style.background =
-          `radial-gradient(circle 700px at ${x}px ${y}px, rgba(180,130,40,0.06) 0%, transparent 60%)`
-      }
-    }
-    el.addEventListener('mousemove', handler)
-    return () => el.removeEventListener('mousemove', handler)
-  }, [])
+  const chips = [
+    { label: '📁 INCIDENT', text: 'Classified research project vanished from campus.' },
+    { label: '👁️ SUSPECTS', text: '4 Secret Roles: Detective · Investigator · Mastermind · Conspirator' },
+    { label: '🚨 LOCKDOWN', text: 'Uncover the truth before 5-minute clock expires.' },
+  ]
+
+  const handleNext = (idx) => {
+    playBlip()
+    setActiveChip(idx)
+  }
 
   return (
-    <section ref={containerRef} className="cu-hero-fullscreen">
-      {/* Unsplash crossfading background */}
-      <UnsplashBackground />
+    <div className="cu-tactical-strip" data-hover>
+      <div className="cu-strip-pills">
+        {chips.map((c, i) => (
+          <button
+            key={i}
+            className={`cu-strip-pill ${activeChip === i ? 'cu-strip-pill--active' : ''}`}
+            onClick={() => handleNext(i)}
+            data-hover
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+      <p className="cu-strip-text">
+        <span className="cu-strip-icon">▶</span> {chips[activeChip].text}
+      </p>
+    </div>
+  )
+}
 
-      {/* R3F stars layer */}
+/* ─────────────────────────────────────────────
+   COMPONENT — Single Full-Viewport Hero Launcher
+   ───────────────────────────────────────────── */
+function HeroSection({ onBeginInvestigation, playBlip }) {
+  const containerRef = useRef(null)
+  const cardRef      = useRef(null)
+  const spotRef      = useRef(null)
+  const bgRef        = useRef(null)
+  const [activeIntel, setActiveIntel] = useState(null)
+  const reducedMotion = usePrefersReducedMotion()
+
+  useEffect(() => {
+    const container = containerRef.current
+    const card      = cardRef.current
+    if (!container || reducedMotion) return
+
+    const handleMove = (e) => {
+      const rect = container.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      const y = e.clientY - rect.top
+      const cx = rect.width / 2
+      const cy = rect.height / 2
+
+      if (spotRef.current) {
+        spotRef.current.style.background =
+          `radial-gradient(circle 600px at ${x}px ${y}px, rgba(0,242,254,0.06) 0%, transparent 65%)`
+      }
+
+      if (card) {
+        const rotateX = -((y - cy) / cy) * 8
+        const rotateY = ((x - cx) / cx) * 10
+        gsap.to(card, {
+          rotateX,
+          rotateY,
+          duration: 0.4,
+          ease: 'power2.out',
+          transformPerspective: 1000,
+        })
+      }
+    }
+
+    const handleLeave = () => {
+      if (card) {
+        gsap.to(card, { rotateX: 0, rotateY: 0, duration: 0.8, ease: 'elastic.out(1, 0.4)' })
+      }
+    }
+
+    container.addEventListener('mousemove', handleMove)
+    container.addEventListener('mouseleave', handleLeave)
+    return () => {
+      container.removeEventListener('mousemove', handleMove)
+      container.removeEventListener('mouseleave', handleLeave)
+    }
+  }, [reducedMotion])
+
+  const intelItems = {
+    servers: { title: 'NETWORK STATUS: NOMINAL', detail: 'WebSocket cluster active in ASIA-SOUTH1. 24ms ping. Zero dropped packets.' },
+    active:  { title: 'TACTICAL OPERATION: ACTIVE', detail: '24 campus zones monitored. 16 autonomous NPCs patrolling. 4 secret player roles.' },
+    suspects:{ title: 'CLASSIFIED CASE FILE: UNRESOLVED', detail: 'Mastermind unidentified. 5-minute match countdown begins on deployment.' },
+  }
+
+  const handleChipClick = (key) => {
+    playBlip()
+    setActiveIntel(c => c === key ? null : key)
+  }
+
+  return (
+    <section ref={containerRef} className="cu-hero-fullscreen" id="hero">
+      <CinematicVideoBackground bgRef={bgRef} />
+
       <div className="cu-hero-canvas-stars">
         <Canvas camera={{ position: [0, 0, 10], fov: 60 }} gl={{ antialias: true, alpha: true }}>
           <HeroR3FScene />
         </Canvas>
       </div>
 
-      {/* Mouse spotlight */}
+      <EerieCanvasBackground containerRef={containerRef} />
+
       <div ref={spotRef} className="cu-hero-spotlight" />
 
-      {/* Floating particles */}
-      <FloatingParticles />
+      {/* ── Left Flank: Interactive Surveillance & Case File Radar Widget ── */}
+      <div className="cu-tactical-flank-card cu-flank-left" data-hover>
+        <div className="cu-flank-header">
+          <span className="cu-flank-title">📡 LIVE SURVEILLANCE</span>
+          <span className="cu-flank-status-dot cu-dot-green" />
+        </div>
+        <div className="cu-radar-display">
+          <div className="cu-radar-sweep" />
+          <span className="cu-radar-blip cu-blip-red" style={{ top: '35%', left: '42%' }} title="Suspect P01" />
+          <span className="cu-radar-blip cu-blip-cyan" style={{ top: '65%', left: '70%' }} title="Patrol NPC" />
+        </div>
+        <div className="cu-flank-chips">
+          <button className="cu-flank-chip" onClick={() => handleChipClick('servers')} data-hover>
+            📁 CASE DOSSIER #04471
+          </button>
+          <button className="cu-flank-chip" onClick={() => handleChipClick('active')} data-hover>
+            🗺️ 24 ZONES · 16 NPCs
+          </button>
+        </div>
+      </div>
 
-      {/* ─── Central Content ─── */}
+      {/* ── Right Flank: Operations Timer & Signal Radar Widget ── */}
+      <div className="cu-tactical-flank-card cu-flank-right" data-hover>
+        <div className="cu-flank-header">
+          <span className="cu-flank-title">⏱️ MATCH CONTROL</span>
+          <span className="cu-flank-status-dot cu-dot-red" />
+        </div>
+        <div className="cu-timer-ring-display">
+          <svg className="cu-timer-svg" viewBox="0 0 60 60">
+            <circle cx="30" cy="30" r="24" className="cu-ring-bg" />
+            <circle cx="30" cy="30" r="24" className="cu-ring-fill" />
+          </svg>
+          <span className="cu-ring-readout">05:00</span>
+        </div>
+        <div className="cu-flank-chips">
+          <button className="cu-flank-chip cu-chip-alert" onClick={() => handleChipClick('suspects')} data-hover>
+            🚨 5-MIN LOCKDOWN
+          </button>
+          <div className="cu-flank-chip cu-chip-signal">
+            ⚡ 24ms REGION PING
+          </div>
+        </div>
+      </div>
+
+      {/* Central Content */}
       <div className="cu-hero-center">
 
-        {/* Top badge */}
-        <div className="cu-hero-badge-elegant">
+        <div className="cu-hero-badge-elegant" data-hover>
           <div className="cu-badge-line" />
           <span className="cu-badge-text-elegant">CHRIST UNIVERSITY · CLASSIFIED OPERATION · BENGALURU</span>
           <div className="cu-badge-line" />
         </div>
 
-        {/* Main title */}
-        <div className="cu-hero-title-block">
+        {/* Interactive 3D Title Card */}
+        <div ref={cardRef} className="cu-hero-title-block cu-title-card-3d" data-hover>
           <h1 className="cu-hero-main-title">
-            <span className="cu-title-campus">CAMPUS</span>
-            <span className="cu-title-game">GAME</span>
+            <span className="cu-title-campus glitch-text-hover">CAMPUS</span>
+            <span className="cu-title-undercover glitch-text-hover">UNDERCOVER</span>
           </h1>
 
-          {/* Ornamental divider */}
           <div className="cu-title-ornament">
             <div className="cu-ornament-line" />
             <span className="cu-ornament-cross">✝</span>
             <div className="cu-ornament-line" />
           </div>
 
-          {/* Subtitle */}
           <p className="cu-hero-subtitle-elegant">
             T&nbsp;H&nbsp;E&nbsp;&nbsp;&nbsp;C&nbsp;H&nbsp;R&nbsp;I&nbsp;S&nbsp;T&nbsp;&nbsp;&nbsp;M&nbsp;Y&nbsp;S&nbsp;T&nbsp;E&nbsp;R&nbsp;Y
           </p>
         </div>
 
-        {/* Tagline */}
-        <p className="cu-hero-tagline-elegant">
-          A classified research project has vanished from campus.<br />
-          Every player is a suspect. Every clue matters.<br />
-          <em>Uncover the truth before time runs out.</em>
-        </p>
+        {/* Short & Crisp Tactical Intel Strip */}
+        <TacticalIntelStrip playBlip={playBlip} />
 
-        {/* CTA buttons */}
+        {/* CTA button */}
         <div className="cu-hero-ctas-elegant">
           <button
             className="cu-btn-begin"
             onClick={onBeginInvestigation}
             id="begin-investigation-btn"
             data-hover
+            data-magnetic
           >
             <span className="cu-btn-begin-glow" />
             <span className="cu-btn-begin-border" />
-            <span className="cu-btn-begin-label">
+            <span className="cu-btn-begin-label" data-magnetic-label>
               ▶&nbsp;&nbsp;BEGIN INVESTIGATION
             </span>
           </button>
         </div>
 
-        {/* Status row */}
+        {/* Live status row */}
         <div className="cu-hero-status-row">
-          <span className="cu-status-item">
-            <span className="cu-status-dot cu-dot-green" />
-            SERVERS ONLINE
+          <span className={`cu-status-item ${activeIntel === 'servers' ? 'cu-status-item--active' : ''}`}
+                onClick={() => handleChipClick('servers')} data-hover>
+            <span className="cu-status-dot cu-dot-green" />SERVERS ONLINE
           </span>
           <span className="cu-status-sep">·</span>
-          <span className="cu-status-item">
-            <span className="cu-status-dot cu-dot-amber" />
-            INVESTIGATION ACTIVE
+          <span className={`cu-status-item ${activeIntel === 'active' ? 'cu-status-item--active' : ''}`}
+                onClick={() => handleChipClick('active')} data-hover>
+            <span className="cu-status-dot cu-dot-amber" />INVESTIGATION ACTIVE
           </span>
           <span className="cu-status-sep">·</span>
-          <span className="cu-status-item">
-            <span className="cu-status-dot cu-dot-red" />
-            SUSPECTS UNIDENTIFIED
+          <span className={`cu-status-item ${activeIntel === 'suspects' ? 'cu-status-item--active' : ''}`}
+                onClick={() => handleChipClick('suspects')} data-hover>
+            <span className="cu-status-dot cu-dot-red" />SUSPECTS UNIDENTIFIED
           </span>
         </div>
+
+        {/* Intel Tooltip Modal */}
+        {activeIntel && intelItems[activeIntel] && (
+          <div className="cu-intel-popover">
+            <div className="cu-intel-header">
+              <span>🔒 {intelItems[activeIntel].title}</span>
+              <button className="cu-intel-close" onClick={() => setActiveIntel(null)}>✕</button>
+            </div>
+            <p className="cu-intel-body">{intelItems[activeIntel].detail}</p>
+          </div>
+        )}
       </div>
 
       {/* Bottom footer bar */}
@@ -443,12 +800,12 @@ function HeroSection({ onBeginInvestigation }) {
    COMPONENT — Auth Slide Panel
    ───────────────────────────────────────────── */
 function AuthPanel({ isOpen, onAuth, onClose }) {
-  const [mode, setMode] = useState('login')
-  const [email, setEmail] = useState('')
+  const [mode,     setMode]     = useState('login')
+  const [email,    setEmail]    = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [error,    setError]    = useState('')
+  const [loading,  setLoading]  = useState(false)
 
   const fieldStyle = {
     width: '100%', padding: '12px 16px', boxSizing: 'border-box',
@@ -467,7 +824,7 @@ function AuthPanel({ isOpen, onAuth, onClose }) {
         setLoading(false); return
       }
       const token = await apiFetch('/api/v1/auth/login', { method: 'POST', body: JSON.stringify({ username: email, email, password }) })
-      const me = await apiFetch('/api/v1/auth/me', {}, token.access_token)
+      const me    = await apiFetch('/api/v1/auth/me', {}, token.access_token)
       onAuth({ token: token.access_token, userId: me.id, username: me.username })
     } catch (err) { setError(err.message) }
     setLoading(false)
@@ -536,12 +893,12 @@ function AuthPanel({ isOpen, onAuth, onClose }) {
 const STANDARD_GAME_LABEL = '10 MIN · STANDARD'
 
 function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
-  const [tab, setTab] = useState('create')
+  const [tab,        setTab]        = useState('create')
   const [maxPlayers, setMaxPlayers] = useState(1)
-  const [joinCode, setJoinCode] = useState('')
-  const [rooms, setRooms] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [joinCode,   setJoinCode]   = useState('')
+  const [rooms,      setRooms]      = useState([])
+  const [loading,    setLoading]    = useState(false)
+  const [error,      setError]      = useState('')
 
   const fetchRooms = useCallback(async () => {
     if (!auth?.token) return
@@ -566,16 +923,12 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
       onJoinedRoom(resRoom)
     } catch (err) {
       if (maxPlayers === 1 || (err.message && (err.message.includes('greater than or equal to 2') || err.message.includes('max_players')))) {
-        // Handle server legacy ge=2 schema constraint for 1-player mode seamlessly
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
         let mockCode = 'SOLO'
         for (let i = 0; i < 2; i++) mockCode += chars[Math.floor(Math.random() * chars.length)]
         const localRoom = {
-          room_code: mockCode,
-          status: 'waiting',
-          difficulty: 'standard',
-          host_id: auth?.userId || auth?.user_id || 1,
-          max_players: 1,
+          room_code: mockCode, status: 'waiting', difficulty: 'standard',
+          host_id: auth?.userId || auth?.user_id || 1, max_players: 1,
           players: [{ player_id: auth?.userId || auth?.user_id || 1, username: auth?.username || 'Agent', is_ready: true }]
         }
         onJoinedRoom(localRoom)
@@ -636,10 +989,7 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
             <input type="range" min={1} max={4} value={maxPlayers} onChange={e => setMaxPlayers(+e.target.value)}
               style={{ width: '100%', accentColor: '#dc2626' }} />
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: '#475569', fontFamily: 'monospace', marginTop: 4 }}>
-              <span>1 player (3 bots)</span>
-              <span>2 players (2 bots)</span>
-              <span>3 players (1 bot)</span>
-              <span>4 players (0 bots)</span>
+              <span>1 player (3 bots)</span><span>2 players (2 bots)</span><span>3 players (1 bot)</span><span>4 players (0 bots)</span>
             </div>
             <button className="cu-btn-primary" style={{ marginTop: 20, width: '100%' }} onClick={auth?.token ? createRoom : onPlay} disabled={loading} data-hover>
               <span className="cu-btn-shine" />
@@ -686,16 +1036,11 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
                 return (
                   <div key={r.room_code} className="cu-room-row">
                     <code className="cu-room-code">{r.room_code}</code>
-                    <span className="cu-room-meta">
-                      {currentCount}/{r.max_players} players · {STANDARD_GAME_LABEL}
-                    </span>
-                    <button
-                      className="cu-room-join-btn"
-                      onClick={() => joinRoom(r.room_code)}
+                    <span className="cu-room-meta">{currentCount}/{r.max_players} players · {STANDARD_GAME_LABEL}</span>
+                    <button className="cu-room-join-btn" onClick={() => joinRoom(r.room_code)}
                       disabled={loading || isFull}
                       style={{ opacity: isFull ? 0.5 : 1, cursor: isFull ? 'not-allowed' : 'pointer' }}
-                      data-hover={!isFull}
-                    >
+                      data-hover={!isFull}>
                       {isFull ? 'FULL' : 'CONNECT'}
                     </button>
                   </div>
@@ -719,11 +1064,10 @@ function WaitingRoom({ auth, room: init, onGameStarted, onClose }) {
   const wsRef = useRef(null)
   const setRoomCode = useGameStore(s => s.setRoomCode)
 
-  const myId = auth?.userId || auth?.user_id || auth?.id || 1
-  const players = Array.isArray(room.players) ? room.players : Object.values(room.players || {})
-  const myPlayer = players.find(p => String(p.player_id || p.id) === String(myId))
-  // isHost: either your id matches host_id, OR the room code was locally-generated (no auth)
-  const isHost = String(room.host_id) === String(myId) || !auth?.token
+  const myId      = auth?.userId || auth?.user_id || auth?.id || 1
+  const players   = Array.isArray(room.players) ? room.players : Object.values(room.players || {})
+  const myPlayer  = players.find(p => String(p.player_id || p.id) === String(myId))
+  const isHost    = String(room.host_id) === String(myId) || !auth?.token
 
   const [wsError, setWsError] = useState('')
 
@@ -793,13 +1137,11 @@ function WaitingRoom({ auth, room: init, onGameStarted, onClose }) {
               </span>
             </div>
           ))}
-          {/* Empty human slots waiting to be filled */}
           {Array.from({ length: Math.max(0, (room.max_players || 1) - players.length) }).map((_, i) => (
             <div key={`e${i}`} className="cu-waiting-player cu-waiting-empty">
               <span>— Awaiting agent connection...</span>
             </div>
           ))}
-          {/* Bot slots that will be auto-assigned on game start */}
           {room.max_players < 4 && Array.from({ length: 4 - (room.max_players || 1) }).map((_, i) => (
             <div key={`bot${i}`} className="cu-waiting-player" style={{ opacity: 0.4, borderColor: 'rgba(167,139,250,0.2)' }}>
               <div className="cu-waiting-avatar" style={{ background: '#6b21a8' }}>🤖</div>
@@ -811,36 +1153,26 @@ function WaitingRoom({ auth, room: init, onGameStarted, onClose }) {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 20 }}>
           {(() => {
-            // targetCount = number of HUMAN players needed before host can start
-            const targetCount = room.max_players || 1
+            const targetCount  = room.max_players || 1
             const currentCount = players.length
-            const hasJoinedTarget = currentCount >= targetCount
-            // All non-host players must be ready (or there are no non-host players)
-            const nonHostPlayers = players.filter(p => String(p.player_id || p.id) !== String(room.host_id))
-            const allNonHostReady = nonHostPlayers.length === 0 || nonHostPlayers.every(p => p.is_ready)
+            const hasJoinedTarget   = currentCount >= targetCount
+            const nonHostPlayers    = players.filter(p => String(p.player_id || p.id) !== String(room.host_id))
+            const allNonHostReady   = nonHostPlayers.length === 0 || nonHostPlayers.every(p => p.is_ready)
             const canStart = hasJoinedTarget && allNonHostReady
-            // How many bots will auto-fill
             const botCount = Math.max(0, 4 - targetCount)
 
             return isHost ? (
               <>
-                <button
-                  onClick={startGame}
-                  disabled={!canStart}
+                <button onClick={startGame} disabled={!canStart}
                   style={{
                     width: '100%', padding: 12, border: 'none', borderRadius: 6,
-                    background: canStart
-                      ? 'linear-gradient(135deg, #7c3aed, #4f46e5)'
-                      : 'rgba(255,255,255,0.05)',
+                    background: canStart ? 'linear-gradient(135deg, #7c3aed, #4f46e5)' : 'rgba(255,255,255,0.05)',
                     color: canStart ? '#fff' : 'rgba(255,255,255,0.3)',
                     fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: 12,
-                    cursor: canStart ? 'pointer' : 'not-allowed',
-                    letterSpacing: 1,
-                    boxShadow: canStart ? '0 4px 15px rgba(124,58,237,0.3)' : 'none',
-                    transition: 'all 0.2s'
+                    cursor: canStart ? 'pointer' : 'not-allowed', letterSpacing: 1,
+                    boxShadow: canStart ? '0 4px 15px rgba(124,58,237,0.3)' : 'none', transition: 'all 0.2s'
                   }}
-                  data-hover={canStart ? "true" : "false"}
-                >
+                  data-hover={canStart ? "true" : "false"}>
                   {!hasJoinedTarget
                     ? `⏳ WAITING FOR PLAYERS TO JOIN (${currentCount}/${targetCount})`
                     : !allNonHostReady
@@ -860,11 +1192,9 @@ function WaitingRoom({ auth, room: init, onGameStarted, onClose }) {
                 ) : null}
               </>
             ) : (
-              <button
-                onClick={toggleReady}
+              <button onClick={toggleReady}
                 style={{ width: '100%', padding: 12, border: `1.5px solid ${myPlayer?.is_ready ? '#22c55e' : 'rgba(6,182,212,0.5)'}`, borderRadius: 6, background: myPlayer?.is_ready ? 'rgba(34,197,94,0.1)' : 'rgba(6,182,212,0.05)', color: myPlayer?.is_ready ? '#86efac' : '#22d3ee', fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: 12, cursor: 'pointer', letterSpacing: 1 }}
-                data-hover
-              >
+                data-hover>
                 {myPlayer?.is_ready ? '✓ READY' : '○ SIGNAL READY'}
               </button>
             )
@@ -876,7 +1206,7 @@ function WaitingRoom({ auth, room: init, onGameStarted, onClose }) {
 }
 
 /* ─────────────────────────────────────────────
-   ROOT — HomeScreen
+   ROOT — HomeScreen (Single Full-Viewport AAA Launcher)
    ───────────────────────────────────────────── */
 export default function HomeScreen({ onPlay }) {
   const setRoomCode   = useGameStore(s => s.setRoomCode)
@@ -885,16 +1215,19 @@ export default function HomeScreen({ onPlay }) {
   const setAuthToken  = useGameStore(s => s.setAuthToken)
 
   const [gateVisible, setGateVisible] = useState(false)
-  const [flow, setFlow] = useState('landing') // landing | auth | lobby | waiting
-  const [auth, setAuth] = useState(null)
-  const [room, setRoom] = useState(null)
+  const [flow,        setFlow]        = useState('landing')
+  const [auth,        setAuth]        = useState(null)
+  const [room,        setRoom]        = useState(null)
 
-  const { muted, toggle: toggleAudio } = useAmbientAudio()
+  const { muted, toggle: toggleAudio, playBlip } = useAmbientAudio()
 
-  // Lock body scroll — page is single viewport
   useEffect(() => {
     document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = 'hidden' }
+    document.documentElement.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = ''
+      document.documentElement.style.overflow = ''
+    }
   }, [])
 
   const handleAuth = useCallback((authData) => {
@@ -906,9 +1239,7 @@ export default function HomeScreen({ onPlay }) {
     setFlow('lobby')
   }, [onPlay, setPlayerName, setPlayerId, setAuthToken])
 
-  const handleBeginInvestigation = useCallback(() => {
-    setFlow('auth')
-  }, [])
+  const handleBeginInvestigation = useCallback(() => setFlow('auth'), [])
 
   const handleJoinedRoom = useCallback((roomData) => {
     setRoom(roomData)
@@ -924,7 +1255,7 @@ export default function HomeScreen({ onPlay }) {
   }, [onPlay, setRoomCode, setPlayerId, setPlayerName])
 
   return (
-    <>
+    <div className="cu-root cu-launcher-root">
       <CursorGlow />
       {gateVisible && <LoadingGate onDone={() => setGateVisible(false)} />}
 
@@ -935,24 +1266,24 @@ export default function HomeScreen({ onPlay }) {
         onToggleAudio={toggleAudio}
       />
 
-      <HeroSection onBeginInvestigation={handleBeginInvestigation} />
+      {/* ── Single Full-Viewport AAA Hero Launcher ── */}
+      <HeroSection
+        onBeginInvestigation={handleBeginInvestigation}
+        playBlip={playBlip}
+      />
 
-      {/* Auth Panel */}
+      {/* ── Modals ── */}
       <AuthPanel
         isOpen={flow === 'auth'}
         onAuth={handleAuth}
         onClose={() => setFlow('landing')}
       />
-
-      {/* Lobby */}
       {flow === 'lobby' && (
         <LobbyHub auth={auth} onPlay={onPlay} onJoinedRoom={handleJoinedRoom} onClose={() => setFlow('landing')} />
       )}
-
-      {/* Waiting Room */}
       {flow === 'waiting' && room && (
         <WaitingRoom auth={auth} room={room} onGameStarted={handleGameStarted} onClose={() => setFlow('lobby')} />
       )}
-    </>
+    </div>
   )
 }
