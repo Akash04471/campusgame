@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react'
 import useGameStore from '../../store/gameStore'
+import { MessageSquare, Globe, Users, ShieldAlert } from 'lucide-react'
 
 const CHANNEL_CONFIG = {
-  public: { label: '📢 Public', color: '#94a3b8' },
-  meeting: { label: '🏛️ Meeting', color: '#f59e0b' },
-  villain: { label: '🔴 Secure', color: '#ef4444' },
+  public: { label: 'Public', icon: Globe, color: '#94a3b8' },
+  meeting: { label: 'Meeting', icon: Users, color: '#f59e0b' },
+  villain: { label: 'Secure', icon: ShieldAlert, color: '#ef4444' },
 }
 
 function formatTime(ts) {
@@ -126,8 +127,10 @@ export default function ChatPanel() {
         className={`chat-toggle-btn ${chatOpen ? 'active' : ''}`}
         onClick={toggleChat}
         title="Chat (T)"
+        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
       >
-        💬
+        <MessageSquare size={15} />
+
         {unreadCount > 0 && !chatOpen && (
           <span className="chat-unread-badge">{unreadCount}</span>
         )}
@@ -139,16 +142,21 @@ export default function ChatPanel() {
           {/* Header */}
           <div className="chat-header">
             <div className="chat-channels">
-              {availableChannels.map(ch => (
-                <button
-                  key={ch}
-                  className={`chat-channel-btn ${chatChannel === ch ? 'active' : ''}`}
-                  style={{ '--ch-color': CHANNEL_CONFIG[ch].color }}
-                  onClick={() => setChatChannel(ch)}
-                >
-                  {CHANNEL_CONFIG[ch].label}
-                </button>
-              ))}
+              {availableChannels.map(ch => {
+                const ChIcon = CHANNEL_CONFIG[ch].icon
+                return (
+                  <button
+                    key={ch}
+                    className={`chat-channel-btn ${chatChannel === ch ? 'active' : ''}`}
+                    style={{ '--ch-color': CHANNEL_CONFIG[ch].color, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                    onClick={() => setChatChannel(ch)}
+                  >
+                    <ChIcon size={12} />
+                    {CHANNEL_CONFIG[ch].label}
+                  </button>
+                )
+              })}
+
             </div>
             <button className="panel-close-btn" onClick={toggleChat}>✕</button>
           </div>

@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react'
 import useGameStore from '../../store/gameStore'
-import { TYPE_ICONS, TYPE_COLORS, ReliabilityStars } from '../../utils/evidenceVisuals'
+import { EvidenceTypeIcon, TYPE_COLORS, ReliabilityStars } from '../../utils/evidenceVisuals'
+import { Pin, MapPin } from 'lucide-react'
 
 export default function EvidenceCardPopup() {
   const cardQueue = useGameStore((s) => s.evidenceCardQueue)
@@ -48,12 +49,16 @@ export default function EvidenceCardPopup() {
         }}
       >
         {/* Push Pin */}
-        <div style={{ position: 'absolute', top: '-10px', left: '16px', fontSize: '18px' }}>📌</div>
+        <div style={{ position: 'absolute', top: '-10px', left: '16px', display: 'flex', alignItems: 'center' }}>
+          <Pin size={16} style={{ color: '#dc2626' }} />
+        </div>
 
         {/* Card Header */}
         <div style={{ borderTop: `3px solid ${evColor}`, paddingTop: '8px', marginBottom: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '20px' }}>{TYPE_ICONS[currentCard.evidence_type] || '🔍'}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+              <EvidenceTypeIcon type={currentCard.evidence_type} size={20} />
+            </span>
             <span
               style={{
                 fontFamily: "'JetBrains Mono', monospace",
@@ -76,11 +81,16 @@ export default function EvidenceCardPopup() {
               color: '#a38a6d',
               fontFamily: "'JetBrains Mono', monospace",
               marginTop: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
             }}
           >
-            📍 {currentCard.area_found || currentCard.area || 'Campus Grounds'}
+            <MapPin size={11} />
+            <span>{currentCard.area_found || currentCard.area || 'Campus Grounds'}</span>
           </div>
         </div>
+
 
         {/* Description */}
         <div

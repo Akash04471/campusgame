@@ -1,21 +1,22 @@
 import React, { useEffect } from 'react'
 import useGameStore from '../../store/gameStore'
 import audioManager from '../../utils/audioManager'
+import { Video, MapPin, Laptop, Database, Link, FileText, ShieldAlert, Bell, Target, Brain, Trash2, Lock, ClipboardList, Zap } from 'lucide-react'
 
 const ROLE_ABILITY_ICONS = {
-  CCTV_ANALYSIS:      '📷',
-  MOVEMENT_TRACE:     '📍',
-  DIGITAL_ANALYSIS:   '💻',
-  RECOVER_LOGS:       '🗄️',
-  CORRELATE_EVIDENCE: '🔗',
-  SUBMIT_OBSERVATION: '📝',
-  PLANT_FAKE_EVIDENCE:'🎭',
-  TRIGGER_MEETING:    '🔔',
-  FRAME_PLAYER:       '🎯',
-  MANIPULATE_NPC:     '🧠',
-  DESTROY_EVIDENCE:   '🗑️',
-  SECURE_PERIMETER:   '🔒',
-  CREATE_ALIBI:       '📋',
+  CCTV_ANALYSIS:       Video,
+  MOVEMENT_TRACE:      MapPin,
+  DIGITAL_ANALYSIS:    Laptop,
+  RECOVER_LOGS:        Database,
+  CORRELATE_EVIDENCE:  Link,
+  SUBMIT_OBSERVATION:  FileText,
+  PLANT_FAKE_EVIDENCE: ShieldAlert,
+  TRIGGER_MEETING:     Bell,
+  FRAME_PLAYER:        Target,
+  MANIPULATE_NPC:      Brain,
+  DESTROY_EVIDENCE:    Trash2,
+  SECURE_PERIMETER:    Lock,
+  CREATE_ALIBI:        ClipboardList,
 }
 
 
@@ -45,6 +46,8 @@ function AbilityButton({ ability, onUse }) {
     ? (ability.cooldown_remaining / (ability.cooldown_remaining + 1))
     : 0
 
+  const IconComp = ROLE_ABILITY_ICONS[ability.ability_id] || Zap
+
   return (
     <button
       className={`ability-btn ${ability.is_on_cooldown || ability.uses_remaining <= 0 ? 'disabled' : ''}`}
@@ -54,10 +57,11 @@ function AbilityButton({ ability, onUse }) {
     >
       <div className="ability-btn-inner">
         {ability.is_on_cooldown && <CooldownRing progress={1 - progress} />}
-        <span className="ability-btn-icon">
-          {ROLE_ABILITY_ICONS[ability.ability_id] || '⚡'}
+        <span className="ability-btn-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <IconComp size={18} />
         </span>
       </div>
+
       <p className="ability-btn-label">{ability.name}</p>
       {ability.is_on_cooldown && (
         <p className="ability-cooldown-text">{ability.cooldown_remaining}s</p>
@@ -172,7 +176,7 @@ export default function AbilityMenu() {
           movement_replay,
           generated_evidence,
         })
-        showToast(`📷 CCTV Analysis generated live surveillance report for ${areaName}.`)
+        showToast(`CCTV Analysis generated live surveillance report for ${areaName}.`)
         break
       }
       case 'DIGITAL_ANALYSIS': {
@@ -187,7 +191,7 @@ export default function AbilityMenu() {
           reliability_score: 0.92,
           timestamp: Date.now()
         })
-        showToast(`💻 Digital Analysis complete. Evidence Card secured!`)
+        showToast(`Digital Analysis complete. Evidence Card secured!`)
         break
       }
       case 'RECOVER_LOGS': {
@@ -202,11 +206,11 @@ export default function AbilityMenu() {
           reliability_score: 0.85,
           timestamp: Date.now()
         })
-        showToast(`🗄️ Logs recovered in ${areaName}! Evidence Card secured.`)
+        showToast(`Logs recovered in ${areaName}! Evidence Card secured.`)
         break
       }
       case 'CORRELATE_EVIDENCE': {
-        showToast(`🔗 Evidence correlation active! Use Evidence Board to link cards.`)
+        showToast(`Evidence correlation active! Use Evidence Board to link cards.`)
         break
       }
       case 'MOVEMENT_TRACE': {
@@ -219,16 +223,16 @@ export default function AbilityMenu() {
             { player_id: '9002', first_seen: 300, last_seen: 450, duration_seconds: 150 },
           ]
         })
-        showToast(`📍 Movement Trace report generated for ${areaName}.`)
+        showToast(`Movement Trace report generated for ${areaName}.`)
         break
       }
       case 'TRIGGER_MEETING': {
         setMeetingActive(true)
-        showToast('🔔 Emergency meeting triggered!')
+        showToast('Emergency meeting triggered!')
         break
       }
       default: {
-        showToast(`⚡ Ability "${ability.name}" activated!`)
+        showToast(`Ability "${ability.name}" activated!`)
         break
       }
     }
@@ -253,9 +257,10 @@ export default function AbilityMenu() {
         <div className="ability-menu-overlay" id="ability-menu" onClick={toggleAbilityMenu}>
           <div className="ability-menu-panel" onClick={(e) => e.stopPropagation()}>
             <div className="ability-menu-header">
-              <h3>⚡ ABILITIES</h3>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Zap size={16} /> ABILITIES</h3>
               <button className="panel-close-btn" onClick={toggleAbilityMenu}>✕</button>
             </div>
+
             <div className="ability-grid">
               {abilities.map(ab => (
                 <AbilityButton key={ab.ability_id} ability={ab} onUse={handleUse} />

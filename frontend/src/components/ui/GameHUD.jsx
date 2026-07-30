@@ -8,7 +8,7 @@ import VirtualControls from './VirtualControls'
 import CCTVReportPanel from './CCTVReportPanel'
 import EvidenceCardPopup from './EvidenceCardPopup'
 import MovementTraceReportPanel from './MovementTraceReportPanel'
-import TaskCompass from './TaskCompass'
+import { MapPin, Search, Eye, Zap, ShieldAlert, User, Crosshair, AlertTriangle } from 'lucide-react'
 
 
 
@@ -431,8 +431,8 @@ function Timer() {
 function AreaIndicator() {
   const currentArea = useGameStore((s) => s.currentArea)
   return (
-    <div className={`hud-area ${currentArea ? 'visible' : ''}`} id="area-indicator">
-      <span className="area-icon">📍</span>
+    <div className={`hud-area ${currentArea ? 'visible' : ''}`} id="area-indicator" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <MapPin size={14} className="area-icon" />
       <span className="area-name">{currentArea || 'Campus Grounds'}</span>
     </div>
   )
@@ -446,10 +446,14 @@ function RoleBadge() {
     DETECTIVE: '#3b82f6', INVESTIGATOR: '#22c55e',
     MASTERMIND: '#ef4444', CONSPIRATOR: '#f97316',
   }
-  const roleIcons = { DETECTIVE: '🔍', INVESTIGATOR: '🧩', MASTERMIND: '🕵️', CONSPIRATOR: '🔪' }
+  const roleIcons = { DETECTIVE: Search, INVESTIGATOR: Eye, MASTERMIND: Zap, CONSPIRATOR: ShieldAlert }
+  const RoleIconComp = roleIcons[displayRole] || User
+
   return (
     <div className="hud-role-badge" id="role-badge" style={{ '--role-color': roleColors[displayRole] || '#8b5cf6' }}>
-      <span className="role-icon-big">{roleIcons[displayRole] || '👤'}</span>
+      <span className="role-icon-big" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+        <RoleIconComp size={18} />
+      </span>
       <div>
         <span className="role-label">ROLE</span>
         <span className="role-name">{displayRole}</span>
@@ -468,8 +472,8 @@ function NPCDialog() {
     <div className="npc-dialog-overlay" id="npc-dialog" onClick={hideNpcDialog}>
       <div className="npc-dialog-box" onClick={e => e.stopPropagation()}>
         <div className="npc-dialog-header">
-          <div className="npc-avatar-circle">
-            <span>👤</span>
+          <div className="npc-avatar-circle" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <User size={20} />
           </div>
           <div>
             <strong className="npc-name">{content.npc_name}</strong>
@@ -564,7 +568,9 @@ function ObjectiveArrivalBanner() {
 
   return (
     <div className="objective-arrival-banner" id="objective-arrival-banner">
-      <span className="banner-icon">🎯</span>
+      <span className="banner-icon" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Crosshair size={18} />
+      </span>
       <div className="banner-text-group">
         <strong className="banner-title">OBJECTIVE REACHED — {trackedTask.name}</strong>
         <p className="banner-sub">Hold <kbd>E</kbd> (or tap interact) to perform task</p>
@@ -612,7 +618,7 @@ function GlobalToastBanner() {
         cursor: 'pointer'
       }}
     >
-      <span style={{ fontSize: '1.2rem' }}>⚠️</span>
+      <AlertTriangle size={18} />
       <div>
         <strong style={{ display: 'block', fontSize: '0.75rem', letterSpacing: '1px', opacity: 0.9 }}>GLOBAL NOTICE</strong>
         <span style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>{toastMessage}</span>
@@ -621,6 +627,7 @@ function GlobalToastBanner() {
     </div>
   )
 }
+
 
 /* ── Full HUD ── */
 export default function GameHUD() {

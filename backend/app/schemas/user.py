@@ -11,6 +11,13 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str = Field(..., min_length=6, max_length=100)
 
+# Properties to receive on user login
+class UserLogin(BaseModel):
+    username_or_email: Optional[str] = None
+    email: Optional[str] = None
+    username: Optional[str] = None
+    password: str = Field(..., min_length=1, max_length=100)
+
 # Properties to return to client (excludes hashed password)
 class UserResponse(UserBase):
     id: int

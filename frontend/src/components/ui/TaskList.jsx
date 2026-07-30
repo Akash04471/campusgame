@@ -154,13 +154,15 @@ function TaskItemCard({ task, isExpanded, onToggleExpand, activeTaskId, setActiv
       {/* Main Title & Location */}
       <div className="task-card-header">
         <h3 className="task-card-title">{details.name}</h3>
-        <div className="task-card-location">
-          <span>📍 {task.location}</span>
+        <div className="task-card-location" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <MapPin size={12} />
+          <span>{task.location}</span>
           {distance !== null && !task.completed && (
             <span className="task-card-distance">{distance}m away</span>
           )}
         </div>
       </div>
+
 
       {/* Progress Bar (if in progress) */}
       {!task.completed && task.progress > 0 && (
@@ -388,9 +390,9 @@ export default function TaskList() {
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
             >
-              <option value="NEAREST">📍 Nearest First</option>
-              <option value="PRIORITY">⚠️ Highest Priority</option>
-              <option value="REWARD">⭐ Highest Reward</option>
+              <option value="NEAREST">Nearest First</option>
+              <option value="PRIORITY">Highest Priority</option>
+              <option value="REWARD">Highest Reward</option>
             </select>
 
             <button
@@ -435,7 +437,7 @@ export default function TaskList() {
 
           {displayedTasks.length === 0 && (
             <div className="obj-modal-empty">
-              <span>🎉</span>
+              <CheckCircle2 size={32} style={{ color: '#22c55e' }} />
               <p>No objectives match the selected filter.</p>
             </div>
           )}
@@ -465,11 +467,13 @@ export default function TaskList() {
           </span>
         </div>
         {trackedTask && (
-          <div className="obj-hud-btn-sub">
-            📍 {trackedTask.location} · {trackedDetails?.name || trackedTask.name}
+          <div className="obj-hud-btn-sub" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <MapPin size={10} />
+            <span>{trackedTask.location} · {trackedDetails?.name || trackedTask.name}</span>
           </div>
         )}
       </button>
+
 
       {/* Full Objectives Console Modal Portal */}
       {modalContent && ReactDOM.createPortal(modalContent, document.body)}

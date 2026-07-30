@@ -80,7 +80,7 @@ function LoadingScreen({ onFinish }) {
         </div>
         <p className="loading-percent">{Math.floor(progress)}%</p>
 
-        <div className="loading-footer">Christ University, Bengaluru · Campus Game v2.0</div>
+        <div className="loading-footer">Christ University · Campus Game v2.0</div>
       </div>
     </div>
   )

@@ -3,12 +3,13 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import useGameStore from '../../store/gameStore'
 import MuteToggleButton from './MuteToggleButton'
 import { StudentBody } from '../game/Player'
+import { Search, Eye, Zap, ShieldAlert, RotateCw, Home, CheckCircle, XCircle } from 'lucide-react'
 
 const ROLE_ICONS = {
-  DETECTIVE: '🔍',
-  INVESTIGATOR: '🧩',
-  MASTERMIND: '🧠',
-  CONSPIRATOR: '🔪',
+  DETECTIVE: Search,
+  INVESTIGATOR: Eye,
+  MASTERMIND: Zap,
+  CONSPIRATOR: ShieldAlert,
 }
 
 const ROLE_COLORS = {
@@ -17,6 +18,7 @@ const ROLE_COLORS = {
   MASTERMIND: '#ef4444',
   CONSPIRATOR: '#f97316',
 }
+
 
 function ConfettiCanvas({ winner }) {
   const canvasRef = useRef(null)
@@ -277,8 +279,8 @@ export default function GameResultsScreen() {
         <div className={`results-banner ${investigatorsWon ? 'investigators-win' : 'villains-win'}`} style={{
           animation: 'fadeIn 0.5s ease-out'
         }}>
-          <span className="results-faction-icon">
-            {investigatorsWon ? '🔍' : '🕵️'}
+          <span className="results-faction-icon" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+            {investigatorsWon ? <Search size={28} /> : <ShieldAlert size={28} />}
           </span>
           <div>
             <h2 className="results-title">
@@ -306,7 +308,7 @@ export default function GameResultsScreen() {
               name={conspiratorName}
               label="ACTUAL CONSPIRATOR"
               accentColor="#f97316"
-              badgeText={isDetectiveCorrect ? 'EXPOSED 🚨' : 'EVADED 🏃'}
+              badgeText={isDetectiveCorrect ? 'EXPOSED' : 'EVADED'}
               badgeSuccess={isDetectiveCorrect}
             />
           )}
@@ -318,7 +320,7 @@ export default function GameResultsScreen() {
               name={mastermindName}
               label="ACTUAL MASTERMIND"
               accentColor="#ef4444"
-              badgeText={isInvCorrect ? 'EXPOSED 🚨' : 'EVADED 🏃'}
+              badgeText={isInvCorrect ? 'EXPOSED' : 'EVADED'}
               badgeSuccess={isInvCorrect}
             />
           )}
@@ -378,7 +380,7 @@ export default function GameResultsScreen() {
                 fontSize: '0.95rem'
               }}
             >
-              <span>📊 Detailed Investigation Breakdown & Standings</span>
+              <span>Detailed Investigation Breakdown & Standings</span>
               <span>{showBreakdown ? '▲ Hide' : '▼ Expand'}</span>
             </button>
 
@@ -393,17 +395,17 @@ export default function GameResultsScreen() {
                   border: '1px solid #1f2937'
                 }}>
                   <h4 style={{ color: '#e2e8f0', margin: '0 0 8px 0', fontSize: '0.95rem' }}>
-                    🕵️ Detective Guess:
+                    Detective Guess:
                   </h4>
                   <p style={{ margin: '0 0 12px 0', color: '#94a3b8', fontSize: '0.88rem' }}>
                     Selected <strong>{detectiveGuessName}</strong> as Conspirator → {isDetectiveCorrect ? '✓ Correct' : '✗ Incorrect'}
                   </p>
 
                   <h4 style={{ color: '#e2e8f0', margin: '0 0 8px 0', fontSize: '0.95rem' }}>
-                    🧩 Investigator Majority Vote:
+                    Investigator Majority Vote:
                   </h4>
                   <p style={{ margin: '0 0 4px 0', color: '#94a3b8', fontSize: '0.88rem' }}>
-                    Status: {isInvSuccess ? `Majority pick for Mastermind: ${invFinalGuessName}` : `⚠️ ${invResult.failMessage || 'No majority reached'}`}
+                    Status: {isInvSuccess ? `Majority pick for Mastermind: ${invFinalGuessName}` : `${invResult.failMessage || 'No majority reached'}`}
                   </p>
                   {invResult.voteCounts && (
                     <p style={{ margin: 0, color: '#64748b', fontSize: '0.82rem', fontFamily: 'monospace' }}>
@@ -416,19 +418,24 @@ export default function GameResultsScreen() {
                 <div className="results-roles-section" style={{ marginBottom: '16px' }}>
                   <p className="results-section-label">PLAYER IDENTITIES</p>
                   <div className="results-roles-grid">
-                    {Object.entries(all_roles).map(([pid, role]) => (
-                      <div
-                        key={pid}
-                        className={`result-role-card ${
-                          pid === mastermind_id || pid === conspirator_id ? 'villain' : 'innocent'
-                        }`}
-                        style={{ '--role-color': ROLE_COLORS[role] }}
-                      >
-                        <span className="result-role-icon">{ROLE_ICONS[role]}</span>
-                        <p className="result-player-name">{player_names[pid] || pid}</p>
-                        <p className="result-role-name">{role}</p>
-                      </div>
-                    ))}
+                    {Object.entries(all_roles).map(([pid, role]) => {
+                      const RoleIconComponent = ROLE_ICONS[role] || Search
+                      return (
+                        <div
+                          key={pid}
+                          className={`result-role-card ${
+                            pid === mastermind_id || pid === conspirator_id ? 'villain' : 'innocent'
+                          }`}
+                          style={{ '--role-color': ROLE_COLORS[role] }}
+                        >
+                          <span className="result-role-icon" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <RoleIconComponent size={18} />
+                          </span>
+                          <p className="result-player-name">{player_names[pid] || pid}</p>
+                          <p className="result-role-name">{role}</p>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
 
@@ -448,21 +455,24 @@ export default function GameResultsScreen() {
                       </tr>
                     </thead>
                     <tbody>
-                      {sortedStats.map((stat, i) => (
-                        <tr key={stat.player_id} className={stat.won ? 'winner-row' : ''}>
-                          <td>{i + 1}</td>
-                          <td>{stat.username}</td>
-                          <td style={{ color: ROLE_COLORS[stat.role] }}>
-                            {ROLE_ICONS[stat.role]} {stat.role}
-                          </td>
-                          <td>{stat.evidence_collected}</td>
-                          <td>{stat.tasks_completed}</td>
-                          <td><strong>{stat.points_earned}</strong></td>
-                          <td className={stat.won ? 'stat-won' : 'stat-lost'}>
-                            {stat.won ? '✓ Won' : '✗ Lost'}
-                          </td>
-                        </tr>
-                      ))}
+                      {sortedStats.map((stat, i) => {
+                        const RoleIconComponent = ROLE_ICONS[stat.role] || Search
+                        return (
+                          <tr key={stat.player_id} className={stat.won ? 'winner-row' : ''}>
+                            <td>{i + 1}</td>
+                            <td>{stat.username}</td>
+                            <td style={{ color: ROLE_COLORS[stat.role], display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <RoleIconComponent size={13} /> {stat.role}
+                            </td>
+                            <td>{stat.evidence_collected}</td>
+                            <td>{stat.tasks_completed}</td>
+                            <td><strong>{stat.points_earned}</strong></td>
+                            <td className={stat.won ? 'stat-won' : 'stat-lost'}>
+                              {stat.won ? '✓ Won' : '✗ Lost'}
+                            </td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -478,19 +488,22 @@ export default function GameResultsScreen() {
               id="play-again-btn"
               className="results-btn primary"
               onClick={() => window.location.reload()}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
             >
-              🔄 Play Again
+              <RotateCw size={14} /> Play Again
             </button>
             <button
               id="main-menu-btn"
               className="results-btn secondary"
               onClick={() => window.location.reload()}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
             >
-              🏠 Main Menu
+              <Home size={14} /> Main Menu
             </button>
           </div>
         )}
       </div>
+
     </div>
   )
 }

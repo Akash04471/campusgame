@@ -3,6 +3,7 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { Stars } from '@react-three/drei'
 import { gsap } from 'gsap'
 import useGameStore from '../../store/gameStore'
+import { Volume2, VolumeX, FileText, Eye, AlertTriangle, ChevronRight, Radio, MapPin, Clock, Zap, Lock, Key, Plus, Globe, RotateCw, Crown, Bot, User } from 'lucide-react'
 
 /* ─────────────────────────────────────────────
    EXPORTS — used by App.jsx for WebSocket setup
@@ -521,7 +522,7 @@ function EerieCanvasBackground({ containerRef }) {
 /* ─────────────────────────────────────────────
    COMPONENT — NavBar
    ───────────────────────────────────────────── */
-function NavBar({ auth, onBeginInvestigation, muted, onToggleAudio }) {
+function NavBar({ auth, onBeginInvestigation, onLogout, muted, onToggleAudio }) {
   return (
     <nav className="cu-nav cu-nav-transparent">
       <div className="cu-nav-logo" data-hover>
@@ -530,11 +531,18 @@ function NavBar({ auth, onBeginInvestigation, muted, onToggleAudio }) {
         <span className="cu-nav-tag">CLASSIFIED</span>
       </div>
       <div className="cu-nav-actions">
-        <button className="cu-nav-audio-btn" onClick={onToggleAudio} title="Toggle ambient sound" data-hover>
-          {muted ? '🔈' : '🔊'}
+        <button className="cu-nav-audio-btn" onClick={onToggleAudio} title="Toggle ambient sound" data-hover style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+          {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
         </button>
         {auth ? (
-          <button className="cu-nav-cta" onClick={onBeginInvestigation} data-hover>ACCESS HQ</button>
+          <div className="cu-nav-user-group">
+            <span className="cu-nav-user-badge" data-hover>
+              <span className="cu-auth-status-dot" style={{ background: '#22c55e', boxShadow: '0 0 5px rgba(34,197,94,0.6)' }} />
+              AGENT // {auth.username}
+            </span>
+            <button className="cu-nav-cta" onClick={onBeginInvestigation} data-hover>ACCESS HQ</button>
+            <button className="cu-nav-sub-btn" onClick={onLogout} title="Log Out" data-hover>DISCONNECT</button>
+          </div>
         ) : (
           <button className="cu-nav-cta" onClick={onBeginInvestigation} data-hover>BEGIN INVESTIGATION</button>
         )}
@@ -550,9 +558,9 @@ function TacticalIntelStrip({ playBlip }) {
   const [activeChip, setActiveChip] = useState(0)
 
   const chips = [
-    { label: '📁 INCIDENT', text: 'Classified research project vanished from campus.' },
-    { label: '👁️ SUSPECTS', text: '4 Secret Roles: Detective · Investigator · Mastermind · Conspirator' },
-    { label: '🚨 LOCKDOWN', text: 'Uncover the truth before 5-minute clock expires.' },
+    { label: 'INCIDENT', icon: FileText, text: 'Classified research project vanished from campus.' },
+    { label: 'SUSPECTS', icon: Eye, text: '4 Secret Roles: Detective · Investigator · Mastermind · Conspirator' },
+    { label: 'LOCKDOWN', icon: AlertTriangle, text: 'Uncover the truth before 5-minute clock expires.' },
   ]
 
   const handleNext = (idx) => {
@@ -563,28 +571,34 @@ function TacticalIntelStrip({ playBlip }) {
   return (
     <div className="cu-tactical-strip" data-hover>
       <div className="cu-strip-pills">
-        {chips.map((c, i) => (
-          <button
-            key={i}
-            className={`cu-strip-pill ${activeChip === i ? 'cu-strip-pill--active' : ''}`}
-            onClick={() => handleNext(i)}
-            data-hover
-          >
-            {c.label}
-          </button>
-        ))}
+        {chips.map((c, i) => {
+          const ChipIcon = c.icon
+          return (
+            <button
+              key={i}
+              className={`cu-strip-pill ${activeChip === i ? 'cu-strip-pill--active' : ''}`}
+              onClick={() => handleNext(i)}
+              data-hover
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <ChipIcon size={12} />
+              {c.label}
+            </button>
+          )
+        })}
       </div>
-      <p className="cu-strip-text">
-        <span className="cu-strip-icon">▶</span> {chips[activeChip].text}
+      <p className="cu-strip-text" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <ChevronRight size={13} className="cu-strip-icon" /> {chips[activeChip].text}
       </p>
     </div>
   )
 }
 
+
 /* ─────────────────────────────────────────────
    COMPONENT — Single Full-Viewport Hero Launcher
    ───────────────────────────────────────────── */
-function HeroSection({ onBeginInvestigation, playBlip }) {
+function HeroSection({ auth, onBeginInvestigation, playBlip }) {
   const containerRef = useRef(null)
   const cardRef      = useRef(null)
   const spotRef      = useRef(null)
@@ -664,7 +678,9 @@ function HeroSection({ onBeginInvestigation, playBlip }) {
       {/* ── Left Flank: Interactive Surveillance & Case File Radar Widget ── */}
       <div className="cu-tactical-flank-card cu-flank-left" data-hover>
         <div className="cu-flank-header">
-          <span className="cu-flank-title">📡 LIVE SURVEILLANCE</span>
+          <span className="cu-flank-title" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Radio size={13} /> LIVE SURVEILLANCE
+          </span>
           <span className="cu-flank-status-dot cu-dot-green" />
         </div>
         <div className="cu-radar-display">
@@ -673,11 +689,11 @@ function HeroSection({ onBeginInvestigation, playBlip }) {
           <span className="cu-radar-blip cu-blip-cyan" style={{ top: '65%', left: '70%' }} title="Patrol NPC" />
         </div>
         <div className="cu-flank-chips">
-          <button className="cu-flank-chip" onClick={() => handleChipClick('servers')} data-hover>
-            📁 CASE DOSSIER #04471
+          <button className="cu-flank-chip" onClick={() => handleChipClick('servers')} data-hover style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <FileText size={12} /> CASE DOSSIER #04471
           </button>
-          <button className="cu-flank-chip" onClick={() => handleChipClick('active')} data-hover>
-            🗺️ 24 ZONES · 16 NPCs
+          <button className="cu-flank-chip" onClick={() => handleChipClick('active')} data-hover style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <MapPin size={12} /> 24 ZONES · 16 NPCs
           </button>
         </div>
       </div>
@@ -685,7 +701,9 @@ function HeroSection({ onBeginInvestigation, playBlip }) {
       {/* ── Right Flank: Operations Timer & Signal Radar Widget ── */}
       <div className="cu-tactical-flank-card cu-flank-right" data-hover>
         <div className="cu-flank-header">
-          <span className="cu-flank-title">⏱️ MATCH CONTROL</span>
+          <span className="cu-flank-title" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Clock size={13} /> MATCH CONTROL
+          </span>
           <span className="cu-flank-status-dot cu-dot-red" />
         </div>
         <div className="cu-timer-ring-display">
@@ -696,21 +714,22 @@ function HeroSection({ onBeginInvestigation, playBlip }) {
           <span className="cu-ring-readout">05:00</span>
         </div>
         <div className="cu-flank-chips">
-          <button className="cu-flank-chip cu-chip-alert" onClick={() => handleChipClick('suspects')} data-hover>
-            🚨 5-MIN LOCKDOWN
+          <button className="cu-flank-chip cu-chip-alert" onClick={() => handleChipClick('suspects')} data-hover style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <AlertTriangle size={12} /> 5-MIN LOCKDOWN
           </button>
-          <div className="cu-flank-chip cu-chip-signal">
-            ⚡ 24ms REGION PING
+          <div className="cu-flank-chip cu-chip-signal" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <Zap size={12} /> 24ms REGION PING
           </div>
         </div>
       </div>
+
 
       {/* Central Content */}
       <div className="cu-hero-center">
 
         <div className="cu-hero-badge-elegant" data-hover>
           <div className="cu-badge-line" />
-          <span className="cu-badge-text-elegant">CHRIST UNIVERSITY · CLASSIFIED OPERATION · BENGALURU</span>
+          <span className="cu-badge-text-elegant">CHRIST UNIVERSITY · CLASSIFIED OPERATION</span>
           <div className="cu-badge-line" />
         </div>
 
@@ -747,10 +766,11 @@ function HeroSection({ onBeginInvestigation, playBlip }) {
             <span className="cu-btn-begin-glow" />
             <span className="cu-btn-begin-border" />
             <span className="cu-btn-begin-label" data-magnetic-label>
-              ▶&nbsp;&nbsp;BEGIN INVESTIGATION
+              ▶&nbsp;&nbsp;{auth ? 'ACCESS HQ LOBBY' : 'BEGIN INVESTIGATION'}
             </span>
           </button>
         </div>
+
 
         {/* Live status row */}
         <div className="cu-hero-status-row">
@@ -784,7 +804,7 @@ function HeroSection({ onBeginInvestigation, playBlip }) {
 
       {/* Bottom footer bar */}
       <div className="cu-hero-footer-bar">
-        <span className="cu-footer-bar-left">CHRIST UNIVERSITY, BENGALURU</span>
+        <span className="cu-footer-bar-left">CHRIST UNIVERSITY</span>
         <div className="cu-footer-bar-center">
           <span className="cu-footer-bar-dot" />
           <span className="cu-footer-bar-dot" />
@@ -797,93 +817,115 @@ function HeroSection({ onBeginInvestigation, playBlip }) {
 }
 
 /* ─────────────────────────────────────────────
-   COMPONENT — Auth Slide Panel
+   COMPONENT — Auth Centered Modal
    ───────────────────────────────────────────── */
-function AuthPanel({ isOpen, onAuth, onClose }) {
-  const [mode,     setMode]     = useState('login')
+function AuthPanel({ isOpen, initialMode = 'login', onAuth, onClose }) {
+  const [mode,     setMode]     = useState(initialMode)
   const [email,    setEmail]    = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error,    setError]    = useState('')
   const [loading,  setLoading]  = useState(false)
 
-  const fieldStyle = {
-    width: '100%', padding: '12px 16px', boxSizing: 'border-box',
-    background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: 6, color: '#f1f5f9', fontSize: 14,
-    fontFamily: "'JetBrains Mono', 'Courier New', monospace",
-    outline: 'none', transition: 'border-color 0.2s',
-  }
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode)
+      setError('')
+    }
+  }, [isOpen, initialMode])
+
+  if (!isOpen) return null
 
   const handleSubmit = async (e) => {
     e.preventDefault(); setError(''); setLoading(true)
     try {
       if (mode === 'register') {
         await apiFetch('/api/v1/auth/register', { method: 'POST', body: JSON.stringify({ username, email, password }) })
-        setMode('login'); setError('Registered. Please log in.')
+        setMode('login'); setError('Agent registered successfully! Please log in.')
         setLoading(false); return
       }
-      const token = await apiFetch('/api/v1/auth/login', { method: 'POST', body: JSON.stringify({ username: email, email, password }) })
-      const me    = await apiFetch('/api/v1/auth/me', {}, token.access_token)
+      const token = await apiFetch('/api/v1/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ username_or_email: email, email, username: email, password })
+      })
+      const me = await apiFetch('/api/v1/auth/me', {}, token.access_token)
       onAuth({ token: token.access_token, userId: me.id, username: me.username })
-    } catch (err) { setError(err.message) }
+    } catch (err) {
+      setError(err.message || 'Authentication failed.')
+    }
     setLoading(false)
   }
 
   return (
-    <>
-      <div className={`cu-panel-backdrop ${isOpen ? 'cu-panel-backdrop-open' : ''}`} onClick={onClose} />
-      <div className={`cu-auth-panel ${isOpen ? 'cu-auth-panel-open' : ''}`}>
-        <button className="cu-panel-close" onClick={onClose}>✕ ESC</button>
+    <div className="cu-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="cu-modal cu-auth-modal">
+        <button className="cu-panel-close cu-modal-close" onClick={onClose}>✕</button>
 
         <div className="cu-auth-header">
           <div className="cu-auth-status-row">
             <span className="cu-auth-status-dot" />
             <span className="cu-auth-status-text">SECURE AUTHENTICATION LAYER</span>
           </div>
-          <h2 className="cu-auth-title">DECRYPTION PORTAL</h2>
-          <p className="cu-auth-sub">Identify yourself to access the investigation network.</p>
+          <h2 className="cu-auth-title">{mode === 'login' ? 'DECRYPTION PORTAL' : 'AGENT REGISTRATION'}</h2>
+          <p className="cu-auth-sub">
+            {mode === 'login'
+              ? 'Identify yourself to access the investigation network.'
+              : 'Enroll a new agent profile into the Christ University database.'}
+          </p>
         </div>
 
         <div className="cu-auth-tabs">
           {['login', 'register'].map(m => (
             <button key={m} className={`cu-auth-tab ${mode === m ? 'cu-auth-tab-active' : ''}`}
-              onClick={() => { setMode(m); setError('') }}>
-              {m === 'login' ? 'DECIPHER' : 'ENROLL'}
+              onClick={() => { setMode(m); setError('') }}
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              {m === 'login' ? <Key size={13} /> : <FileText size={13} />}
+              {m === 'login' ? 'DECIPHER (LOGIN)' : 'ENROLL (REGISTER)'}
             </button>
           ))}
         </div>
 
         <form onSubmit={handleSubmit} className="cu-auth-form">
           {mode === 'register' && (
-            <input style={fieldStyle} placeholder="Agent ID (Username)" value={username}
-              onChange={e => setUsername(e.target.value)} required autoComplete="username" />
+            <div>
+              <label className="cu-modal-field-label">AGENT ID / USERNAME</label>
+              <input className="cu-auth-input" placeholder="e.g. Agent_007" value={username}
+                onChange={e => setUsername(e.target.value)} required autoComplete="username" />
+            </div>
           )}
-          <input style={fieldStyle} placeholder="Secure Email" type="email" value={email}
-            onChange={e => setEmail(e.target.value)} required autoComplete="email" />
-          <input style={fieldStyle} placeholder="Access Key (Password)" type="password" value={password}
-            onChange={e => setPassword(e.target.value)} required autoComplete="current-password" />
+          <div>
+            <label className="cu-modal-field-label">{mode === 'login' ? 'USERNAME OR EMAIL' : 'SECURE EMAIL'}</label>
+            <input className="cu-auth-input" placeholder={mode === 'login' ? "agent@christ.edu or AgentID" : "agent@christ.edu"}
+              type={mode === 'register' ? "email" : "text"} value={email}
+              onChange={e => setEmail(e.target.value)} required autoComplete={mode === 'login' ? "username" : "email"} />
+          </div>
+          <div>
+            <label className="cu-modal-field-label">ACCESS KEY / PASSWORD</label>
+            <input className="cu-auth-input" placeholder="••••••••••••" type="password" value={password}
+              onChange={e => setPassword(e.target.value)} required autoComplete={mode === 'login' ? "current-password" : "new-password"} />
+          </div>
 
           {error && (
-            <div className={`cu-auth-msg ${error.includes('Registered') ? 'cu-auth-msg-ok' : 'cu-auth-msg-err'}`}>
+            <div className={`cu-auth-msg ${error.includes('successfully') || error.includes('Registered') ? 'cu-auth-msg-ok' : 'cu-auth-msg-err'}`}>
               {error}
             </div>
           )}
 
-          <button type="submit" className="cu-btn-primary" disabled={loading} data-hover>
+          <button type="submit" className="cu-btn-primary" disabled={loading} data-hover style={{ marginTop: 8 }}>
             <span className="cu-btn-shine" />
-            {loading ? 'CONNECTING...' : mode === 'login' ? 'INITIALIZE LINK' : 'CREATE AGENT FILE'}
+            {loading ? 'AUTHENTICATING...' : mode === 'login' ? 'INITIALIZE LINK' : 'CREATE AGENT FILE'}
           </button>
         </form>
 
         <div className="cu-auth-footer">
           <button className="cu-guest-btn" data-hover
-            onClick={() => onAuth({ token: null, userId: Date.now(), username: `Guest_${Math.random().toString(36).slice(2, 6)}` })}>
-            ↩ Continue as Guest (Solo Mode)
+            onClick={() => onAuth({ token: null, userId: Date.now(), username: `Guest_${Math.random().toString(36).slice(2, 6)}` })}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <User size={13} /> Continue as Guest (Solo Mode)
           </button>
         </div>
       </div>
-    </>
+    </div>
   )
 }
 
@@ -951,6 +993,8 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
     setLoading(false)
   }
 
+  const tabIcons = { create: Plus, join: Key, browse: Globe }
+
   return (
     <div className="cu-modal-overlay">
       <div className="cu-modal">
@@ -962,11 +1006,16 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
         </div>
 
         <div className="cu-modal-tabs">
-          {[['create','+ CREATE'],['join','🔑 JOIN'],['browse','🌐 BROWSE']].map(([key, label]) => (
-            <button key={key} className={`cu-modal-tab ${tab === key ? 'cu-modal-tab-active' : ''}`} onClick={() => setTab(key)}>
-              {label}
-            </button>
-          ))}
+          {[['create','CREATE'],['join','JOIN'],['browse','BROWSE']].map(([key, label]) => {
+            const TabIcon = tabIcons[key]
+            return (
+              <button key={key} className={`cu-modal-tab ${tab === key ? 'cu-modal-tab-active' : ''}`} onClick={() => setTab(key)}
+                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <TabIcon size={12} />
+                {label}
+              </button>
+            )
+          })}
         </div>
 
         {error && <div className="cu-auth-msg cu-auth-msg-err">{error}</div>}
@@ -974,7 +1023,7 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
         {tab === 'create' && (
           <div className="cu-modal-body">
             <p className="cu-modal-field-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              🕐 GAME MODE
+              <Clock size={12} /> GAME MODE
               <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', color: '#06b6d4', background: 'rgba(6,182,212,0.1)', border: '1px solid rgba(6,182,212,0.3)', borderRadius: 4, padding: '2px 8px' }}>STANDARD — 10 MINUTES</span>
             </p>
             <p style={{ fontSize: '0.78rem', color: '#64748b', fontFamily: 'monospace', marginBottom: 12 }}>All investigation sessions run for a fixed 10-minute window.</p>
@@ -1023,11 +1072,13 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
               <p className="cu-modal-field-label" style={{ margin: 0 }}>ACTIVE TERMINALS ({rooms.length})</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 10, color: '#475569', fontFamily: 'monospace' }}>live-sync 5s</span>
-                <button onClick={fetchRooms} style={{ background: 'none', border: 'none', color: '#06b6d4', cursor: 'pointer', fontSize: 12, fontFamily: 'monospace' }}>↻ REFRESH</button>
+                <button onClick={fetchRooms} style={{ background: 'none', border: 'none', color: '#06b6d4', cursor: 'pointer', fontSize: 12, fontFamily: 'monospace', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <RotateCw size={11} /> REFRESH
+                </button>
               </div>
             </div>
             {!auth?.token
-              ? <p style={{ color: '#f59e0b', fontFamily: 'monospace', fontSize: 12, textAlign: 'center', padding: '20px 0' }}>⚠️ Login required to browse rooms.</p>
+              ? <p style={{ color: '#f59e0b', fontFamily: 'monospace', fontSize: 12, textAlign: 'center', padding: '20px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><AlertTriangle size={14} /> Login required to browse rooms.</p>
               : rooms.length === 0
               ? <p style={{ color: '#475569', fontFamily: 'monospace', fontSize: 12, textAlign: 'center', padding: '20px 0' }}>No active terminals found. Create a room to get started!</p>
               : rooms.map(r => {
@@ -1129,8 +1180,8 @@ function WaitingRoom({ auth, room: init, onGameStarted, onClose }) {
               <div className="cu-waiting-avatar" style={{ background: PCOLORS[i % PCOLORS.length] }}>
                 {(p.username || '?')[0].toUpperCase()}
               </div>
-              <span className="cu-waiting-name">
-                {p.username}{String(p.player_id || p.id) === String(room.host_id) ? ' 👑' : ''}
+              <span className="cu-waiting-name" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                {p.username}{String(p.player_id || p.id) === String(room.host_id) && <Crown size={12} style={{ color: '#eab308' }} />}
               </span>
               <span className={`cu-waiting-status ${p.is_ready ? 'cu-ready' : ''}`}>
                 {p.is_ready ? '✓ READY' : '○ STANDBY'}
@@ -1144,12 +1195,13 @@ function WaitingRoom({ auth, room: init, onGameStarted, onClose }) {
           ))}
           {room.max_players < 4 && Array.from({ length: 4 - (room.max_players || 1) }).map((_, i) => (
             <div key={`bot${i}`} className="cu-waiting-player" style={{ opacity: 0.4, borderColor: 'rgba(167,139,250,0.2)' }}>
-              <div className="cu-waiting-avatar" style={{ background: '#6b21a8' }}>🤖</div>
+              <div className="cu-waiting-avatar" style={{ background: '#6b21a8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Bot size={16} /></div>
               <span className="cu-waiting-name" style={{ color: '#a78bfa' }}>Bot Agent (auto-assigned)</span>
               <span className="cu-waiting-status cu-ready" style={{ color: '#a78bfa' }}>✓ AUTO</span>
             </div>
           ))}
         </div>
+
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 20 }}>
           {(() => {
@@ -1216,6 +1268,7 @@ export default function HomeScreen({ onPlay }) {
 
   const [gateVisible, setGateVisible] = useState(false)
   const [flow,        setFlow]        = useState('landing')
+  const [authMode,    setAuthMode]    = useState('login')
   const [auth,        setAuth]        = useState(null)
   const [room,        setRoom]        = useState(null)
 
@@ -1239,7 +1292,26 @@ export default function HomeScreen({ onPlay }) {
     setFlow('lobby')
   }, [onPlay, setPlayerName, setPlayerId, setAuthToken])
 
-  const handleBeginInvestigation = useCallback(() => setFlow('auth'), [])
+  const handleLogout = useCallback(() => {
+    setAuth(null)
+    setAuthToken(null)
+    setPlayerName('')
+    setPlayerId(null)
+    setFlow('landing')
+  }, [setAuthToken, setPlayerName, setPlayerId])
+
+  const handleOpenAuth = useCallback((initialMode = 'login') => {
+    setAuthMode(initialMode)
+    setFlow('auth')
+  }, [])
+
+  const handleBeginInvestigation = useCallback(() => {
+    if (!auth) {
+      handleOpenAuth('login')
+    } else {
+      setFlow('lobby')
+    }
+  }, [auth, handleOpenAuth])
 
   const handleJoinedRoom = useCallback((roomData) => {
     setRoom(roomData)
@@ -1262,19 +1334,23 @@ export default function HomeScreen({ onPlay }) {
       <NavBar
         auth={auth}
         onBeginInvestigation={handleBeginInvestigation}
+        onLogout={handleLogout}
         muted={muted}
         onToggleAudio={toggleAudio}
       />
 
       {/* ── Single Full-Viewport AAA Hero Launcher ── */}
       <HeroSection
+        auth={auth}
         onBeginInvestigation={handleBeginInvestigation}
         playBlip={playBlip}
       />
 
+
       {/* ── Modals ── */}
       <AuthPanel
         isOpen={flow === 'auth'}
+        initialMode={authMode}
         onAuth={handleAuth}
         onClose={() => setFlow('landing')}
       />
@@ -1287,3 +1363,4 @@ export default function HomeScreen({ onPlay }) {
     </div>
   )
 }
+

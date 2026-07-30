@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
 import ReactDOM from 'react-dom'
 import useGameStore from '../../store/gameStore'
-import { TYPE_ICONS, TYPE_COLORS, ReliabilityStars } from '../../utils/evidenceVisuals'
+import { EvidenceTypeIcon, TYPE_COLORS, ReliabilityStars } from '../../utils/evidenceVisuals'
+import { Pin, Clock, MapPin, Link, AlertTriangle, Flame, MessageSquare, Zap, Shield } from 'lucide-react'
 import SuspectDossier from './SuspectDossier'
+
 
 
 export default function EvidenceBoard() {
@@ -144,8 +146,9 @@ export default function EvidenceBoard() {
           setIsOpen(!isOpen)
         }}
         title="Open Case Board (Detective Only)"
+        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
       >
-        📌
+        <Pin size={15} />
         {evidenceBoard.length > 0 && (
           <span className="evidence-badge-num">{evidenceBoard.length}</span>
         )}
@@ -161,7 +164,7 @@ export default function EvidenceBoard() {
           {/* Header */}
           <div className="corkboard-header">
             <div className="header-left">
-              <h2>📌 CASE INVESTIGATION BOARD</h2>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Pin size={18} /> CASE INVESTIGATION BOARD</h2>
               <span className="badge">DETECTIVE AUTHORIZED</span>
 
               {/* Tab Switcher */}
@@ -182,9 +185,12 @@ export default function EvidenceBoard() {
                     fontSize: '11px',
                     fontFamily: "'JetBrains Mono', monospace",
                     fontWeight: 'bold',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6
                   }}
                 >
-                  📌 Evidence Board ({evidenceBoard.length})
+                  <Pin size={12} /> Evidence Board ({evidenceBoard.length})
                 </button>
                 <button
                   type="button"
@@ -202,9 +208,12 @@ export default function EvidenceBoard() {
                     fontSize: '11px',
                     fontFamily: "'JetBrains Mono', monospace",
                     fontWeight: 'bold',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6
                   }}
                 >
-                  ⏱️ Timeline ({investigationTimeline.length})
+                  <Clock size={12} /> Timeline ({investigationTimeline.length})
                 </button>
                 <button
                   type="button"
@@ -222,9 +231,12 @@ export default function EvidenceBoard() {
                     fontSize: '11px',
                     fontFamily: "'JetBrains Mono', monospace",
                     fontWeight: 'bold',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6
                   }}
                 >
-                  🗂 Suspect Dossiers
+                  <Shield size={12} /> Suspect Dossiers
                 </button>
               </div>
             </div>
@@ -262,25 +274,32 @@ export default function EvidenceBoard() {
 
           {activeTab === 'timeline' ? (
             <div className="timeline-container" style={{ padding: '24px 40px', overflowY: 'auto', maxHeight: 'calc(100vh - 120px)', fontFamily: "'JetBrains Mono', monospace" }}>
-              <h3 style={{ color: '#f59e0b', fontSize: '15px', marginBottom: '16px', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>⏱️ INVESTIGATION TIMELINE LOG</h3>
+              <h3 style={{ color: '#f59e0b', fontSize: '15px', marginBottom: '16px', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Clock size={16} /> INVESTIGATION TIMELINE LOG
+              </h3>
               {investigationTimeline.length === 0 ? (
                 <p style={{ color: '#8c7d6c', fontSize: '13px', fontStyle: 'italic' }}>No timeline events recorded yet. Collect evidence or monitor campus activity to build the case history.</p>
               ) : (
                 <div className="timeline-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {investigationTimeline.slice().reverse().map((evt, idx) => (
-                    <div key={evt.event_id || evt.id || idx} style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', background: 'rgba(255,255,255,0.03)', borderLeft: evt.event_type === 'DEMOLISHED' ? '4px solid #ef4444' : evt.event_type === 'COLLECTED' ? '4px solid #10b981' : '4px solid #3b82f6', padding: '12px 16px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                      <span style={{ fontSize: '18px' }}>
-                        {evt.event_type === 'DEMOLISHED' ? '💥' : evt.event_type === 'COLLECTED' ? '📌' : evt.event_type === 'STATEMENT' ? '🗣️' : '⚡'}
-                      </span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                          <strong style={{ color: evt.event_type === 'DEMOLISHED' ? '#f87171' : evt.event_type === 'COLLECTED' ? '#34d399' : '#60a5fa', fontSize: '13px' }}>{evt.title || evt.event_type}</strong>
-                          <span style={{ color: '#94a3b8', fontSize: '11px' }}>📍 {evt.area || 'Campus'}</span>
+                  {investigationTimeline.slice().reverse().map((evt, idx) => {
+                    const EvtIcon = evt.event_type === 'DEMOLISHED' ? Flame : evt.event_type === 'COLLECTED' ? Pin : evt.event_type === 'STATEMENT' ? MessageSquare : Zap
+                    return (
+                      <div key={evt.event_id || evt.id || idx} style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', background: 'rgba(255,255,255,0.03)', borderLeft: evt.event_type === 'DEMOLISHED' ? '4px solid #ef4444' : evt.event_type === 'COLLECTED' ? '4px solid #10b981' : '4px solid #3b82f6', padding: '12px 16px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
+                          <EvtIcon size={18} style={{ color: evt.event_type === 'DEMOLISHED' ? '#ef4444' : evt.event_type === 'COLLECTED' ? '#10b981' : '#3b82f6' }} />
+                        </span>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                            <strong style={{ color: evt.event_type === 'DEMOLISHED' ? '#f87171' : evt.event_type === 'COLLECTED' ? '#34d399' : '#60a5fa', fontSize: '13px' }}>{evt.title || evt.event_type}</strong>
+                            <span style={{ color: '#94a3b8', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                              <MapPin size={11} /> {evt.area || 'Campus'}
+                            </span>
+                          </div>
+                          <p style={{ color: '#e2e8f0', fontSize: '12px', margin: 0, lineHeight: '1.4' }}>{evt.description}</p>
                         </div>
-                        <p style={{ color: '#e2e8f0', fontSize: '12px', margin: 0, lineHeight: '1.4' }}>{evt.description}</p>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -345,12 +364,16 @@ export default function EvidenceBoard() {
                     onClick={() => handleCardClick(item)}
                   >
                     {/* Push Pin */}
-                    <div className="card-pin">📌</div>
+                    <div className="card-pin" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Pin size={16} style={{ color: '#dc2626' }} />
+                    </div>
 
                     {/* Card body */}
                     <div className="card-inner">
                       <div className="card-meta">
-                        <span className="type-icon">{TYPE_ICONS[item.evidence_type]}</span>
+                        <span className="type-icon">
+                          <EvidenceTypeIcon type={item.evidence_type} size={20} />
+                        </span>
                         <div>
                           <div className="type-label">{item.evidence_type}</div>
                           <div className="area-label">{item.area_found || item.area}</div>
@@ -371,8 +394,8 @@ export default function EvidenceBoard() {
                         </div>
 
                         {!correlateMode && (
-                          <button className="link-btn" onClick={() => startCorrelate(item)}>
-                            🔗 Link
+                          <button className="link-btn" onClick={() => startCorrelate(item)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            <Link size={10} /> Link
                           </button>
                         )}
                       </div>
@@ -384,13 +407,15 @@ export default function EvidenceBoard() {
               {/* Yarn Connection Details Tooltip Panel */}
               {selectedYarn !== null && correlations[selectedYarn] && (
                 <div className="yarn-details-panel">
-                  <h4>🔗 Evidence Link Evaluation</h4>
+                  <h4 style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Link size={14} /> Evidence Link Evaluation</h4>
                   {correlations[selectedYarn][2] ? (
                     <>
                       <p><strong>Note:</strong> {correlations[selectedYarn][2].correlation_note}</p>
                       <p><strong>Link Confidence:</strong> {(correlations[selectedYarn][2].correlation_strength * 100).toFixed(0)}%</p>
                       {correlations[selectedYarn][2].fabrication_warning && (
-                        <p className="warning-text">⚠️ Warning: Suspicion of falsified evidence detected!</p>
+                        <p className="warning-text" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <AlertTriangle size={12} /> Warning: Suspicion of falsified evidence detected!
+                        </p>
                       )}
                     </>
                   ) : (
@@ -401,6 +426,7 @@ export default function EvidenceBoard() {
               )}
             </>
           )}
+
 
 
           {/* Internal Corkboard styling */}
