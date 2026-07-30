@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import useGameStore from '../../store/gameStore'
 import audioManager from '../../utils/audioManager'
 import { StudentBody, ROLE_OUTFIT } from '../game/Player'
+import { Search, Eye, Zap, ShieldAlert, Users } from 'lucide-react'
 
 /* ─────────────────────────────────────────────
    ROLE CONFIGS
@@ -13,7 +14,7 @@ const ROLE_CONFIGS = {
   DETECTIVE: {
     color: '#06b6d4',
     secondaryColor: '#3b82f6',
-    icon: '🔍',
+    icon: Search,
     title: 'DETECTIVE',
     tagline: 'DIGITAL FORENSICS & INVESTIGATION',
     bgStyle: 'radial-gradient(circle at center, rgba(6,182,212,0.06) 0%, #030712 100%)',
@@ -21,7 +22,7 @@ const ROLE_CONFIGS = {
   INVESTIGATOR: {
     color: '#10b981',
     secondaryColor: '#8b5cf6',
-    icon: '🧩',
+    icon: Eye,
     title: 'INVESTIGATOR',
     tagline: 'TACTICAL OBSERVATION & EXPLORATION',
     bgStyle: 'radial-gradient(circle at center, rgba(16,185,129,0.06) 0%, #022c22 100%)',
@@ -29,7 +30,7 @@ const ROLE_CONFIGS = {
   CONSPIRATOR: {
     color: '#f97316',
     secondaryColor: '#dc2626',
-    icon: '🔪',
+    icon: ShieldAlert,
     title: 'CONSPIRATOR',
     tagline: 'SABOTAGE & DECEPTIVE OPERATIONS',
     bgStyle: 'radial-gradient(circle at center, rgba(249,115,22,0.06) 0%, #1c0a00 100%)',
@@ -37,12 +38,13 @@ const ROLE_CONFIGS = {
   MASTERMIND: {
     color: '#ef4444',
     secondaryColor: '#7f1d1d',
-    icon: '🧠',
+    icon: Zap,
     title: 'MASTERMIND',
     tagline: 'STRATEGIC DECEPTION & MANIPULATION',
     bgStyle: 'radial-gradient(circle at center, rgba(239,68,68,0.06) 0%, #0f0202 100%)',
   }
 }
+
 
 /* ─────────────────────────────────────────────
    WEB AUDIO SYNTH — Role Specific Ambience
@@ -181,7 +183,14 @@ function CharacterShowcaseBody({ role, isUserRole, position, color }) {
             userSelect: 'none',
           }}
         >
-          <span>{role === 'DETECTIVE' ? '🔍' : role === 'INVESTIGATOR' ? '🧩' : role === 'MASTERMIND' ? '🧠' : '🔪'}</span>
+          {(() => {
+            const BadgeIcon = ROLE_CONFIGS[role]?.icon || Search
+            return (
+              <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                <BadgeIcon size={14} />
+              </span>
+            )
+          })()}
           <span>{role === 'DETECTIVE' ? 'Detective' : role === 'INVESTIGATOR' ? 'Investigator' : role === 'MASTERMIND' ? 'Mastermind' : 'Conspirator'}</span>
           {isUserRole && (
             <span style={{ background: '#38bdf8', color: '#090d16', padding: '2px 6px', borderRadius: '8px', fontSize: '10px', fontWeight: 900 }}>YOU</span>
@@ -261,6 +270,7 @@ export default function RoleRevealScreen({ onBegin }) {
   const role = String(rawRole).toUpperCase()
   const partnerInfo = useGameStore((s) => s.partnerInfo)
   const config = ROLE_CONFIGS[role] || ROLE_CONFIGS.INVESTIGATOR
+  const RoleCrestIcon = config.icon
 
   // Reveal timeline stages
   const [animStage, setAnimStage] = useState(0) // 0: Init fade, 1: Symbol, 2: Title, 3: Specs, 4: Abilities, 5: Quote, 6: Button active
@@ -312,7 +322,9 @@ export default function RoleRevealScreen({ onBegin }) {
         {/* Step 1: Big Symbol */}
         <div className={`cu-rr-crest ${animStage >= 1 ? 'cu-rr-visible' : ''}`}>
           <div className="cu-rr-ring" />
-          <span className="cu-rr-crest-icon">{config.icon}</span>
+          <span className="cu-rr-crest-icon" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+            <RoleCrestIcon size={42} />
+          </span>
         </div>
 
         {/* Step 2: Role title */}
@@ -328,7 +340,9 @@ export default function RoleRevealScreen({ onBegin }) {
             <div className="cu-rr-partner-reveal">
               <p className="cu-rr-partner-label">CONFIRMED TEAMMATE</p>
               <div className="cu-rr-partner-card">
-                <span className="cu-rr-partner-icon">🤝</span>
+                <span className="cu-rr-partner-icon" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Users size={16} />
+                </span>
                 <div className="cu-rr-partner-info">
                   <span className="cu-rr-partner-name">{partnerInfo.partner_name || `Agent #${partnerInfo.partner_id}`}</span>
                   <span className="cu-rr-partner-role">{partnerInfo.partner_role || 'CO-CONSPIRATOR'}</span>
@@ -338,6 +352,7 @@ export default function RoleRevealScreen({ onBegin }) {
             </div>
           </div>
         )}
+
 
         {/* Step 4: Begin action */}
         <div className={`cu-rr-actions ${animStage >= 4 ? 'cu-rr-visible' : ''}`} style={{ marginTop: 'auto', marginBottom: '30px' }}>

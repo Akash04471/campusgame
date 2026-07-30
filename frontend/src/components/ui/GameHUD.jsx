@@ -8,7 +8,9 @@ import VirtualControls from './VirtualControls'
 import CCTVReportPanel from './CCTVReportPanel'
 import EvidenceCardPopup from './EvidenceCardPopup'
 import MovementTraceReportPanel from './MovementTraceReportPanel'
+import TaskCompass from './TaskCompass'
 import { MapPin, Search, Eye, Zap, ShieldAlert, User, Crosshair, AlertTriangle } from 'lucide-react'
+
 
 
 
