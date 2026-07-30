@@ -313,10 +313,12 @@ export default function App() {
   const setWorldEvidence = useGameStore((s) => s.setWorldEvidence)
   const setNpcs          = useGameStore((s) => s.setNpcs)
   const roomCode         = useGameStore((s) => s.roomCode)
+  const playerId         = useGameStore((s) => s.playerId)
   const storeCurrentScreen  = useGameStore((s) => s.currentScreen)
   const setCurrentScreen     = useGameStore((s) => s.setCurrentScreen)
   const setHasSeenCinematic  = useGameStore((s) => s.setHasSeenCinematic)
   const updateOtherPlayer    = useGameStore((s) => s.updateOtherPlayer)
+
 
   // Sync local screen state with Zustand store currentScreen
   useEffect(() => {
