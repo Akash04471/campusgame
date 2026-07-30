@@ -9,7 +9,8 @@ import CCTVReportPanel from './CCTVReportPanel'
 import EvidenceCardPopup from './EvidenceCardPopup'
 import MovementTraceReportPanel from './MovementTraceReportPanel'
 import TaskCompass from './TaskCompass'
-import { MapPin, Search, Eye, Zap, ShieldAlert, User, Crosshair, AlertTriangle } from 'lucide-react'
+import { MapPin, Search, Eye, Zap, ShieldAlert, User, Crosshair, AlertTriangle, LogOut, ArrowLeft } from 'lucide-react'
+
 
 
 
@@ -631,12 +632,144 @@ function GlobalToastBanner() {
 }
 
 
+/* ── Leave Room Button & Confirmation Modal ── */
+function LeaveRoomButton() {
+  const [showConfirm, setShowConfirm] = useState(false)
+  const leaveRoom = useGameStore((s) => s.leaveRoom)
+  const roomCode = useGameStore((s) => s.roomCode)
+
+  const handleConfirmLeave = () => {
+    setShowConfirm(false)
+    leaveRoom()
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => setShowConfirm(true)}
+        style={{
+          background: 'rgba(239, 68, 68, 0.15)',
+          border: '1px solid rgba(239, 68, 68, 0.4)',
+          color: '#f87171',
+          borderRadius: '8px',
+          padding: '6px 14px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          fontFamily: "'Orbitron', sans-serif",
+          fontSize: '0.75rem',
+          fontWeight: 'bold',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+          backdropFilter: 'blur(6px)',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'rgba(239, 68, 68, 0.3)'
+          e.currentTarget.style.borderColor = '#ef4444'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)'
+          e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.4)'
+        }}
+        title="Leave current room and return to lobby selection"
+      >
+        <LogOut size={14} />
+        <span>LEAVE ROOM</span>
+      </button>
+
+      {showConfirm && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(3, 7, 18, 0.85)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            justify: 'center',
+            padding: '16px',
+          }}
+          onClick={() => setShowConfirm(false)}
+        >
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%)',
+              border: '1.5px solid rgba(239, 68, 68, 0.5)',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '420px',
+              width: '100%',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.8), 0 0 30px rgba(239,68,68,0.2)',
+              color: '#f3f4f6',
+              fontFamily: "'Inter', sans-serif",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(239,68,68,0.2)', border: '1px solid #ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f87171' }}>
+                <LogOut size={20} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', fontFamily: "'Orbitron', sans-serif", color: '#ffffff' }}>LEAVE ROOM</h3>
+                <span style={{ fontSize: '0.75rem', color: '#f87171', fontFamily: 'monospace' }}>ROOM CODE: {roomCode || 'UNKNOWN'}</span>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '0.9rem', color: '#cbd5e1', lineHeight: 1.5, margin: '0 0 20px 0' }}>
+              Are you sure you want to exit the current match? You will leave the operational lobby and return to the room creation and joining screen.
+            </p>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowConfirm(false)}
+                style={{
+                  padding: '10px 18px',
+                  borderRadius: '8px',
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  color: '#cbd5e1',
+                  fontSize: '0.85rem',
+                  fontFamily: "'Orbitron', sans-serif",
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                }}
+              >
+                CANCEL
+              </button>
+              <button
+                onClick={handleConfirmLeave}
+                style={{
+                  padding: '10px 18px',
+                  borderRadius: '8px',
+                  background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                  border: '1px solid #ef4444',
+                  color: '#ffffff',
+                  fontSize: '0.85rem',
+                  fontFamily: "'Orbitron', sans-serif",
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 14px rgba(220,38,38,0.4)',
+                }}
+              >
+                CONFIRM LEAVE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
 /* ── Full HUD ── */
 export default function GameHUD() {
   return (
     <div className="game-hud" id="game-hud">
       <GlobalToastBanner />
       <div className="hud-top-bar">
+        <LeaveRoomButton />
         <RoleBadge />
         <Timer />
         <GlobalTaskProgressBar />
@@ -669,5 +802,6 @@ export default function GameHUD() {
     </div>
   )
 }
+
 
 

@@ -317,6 +317,54 @@ const useGameStore = create((set, get) => ({
     delete rest[pid]
     return { otherPlayers: rest }
   }),
+
+  // Leave room & return to room lobby/creation page
+  leaveRoom: async () => {
+    const { ws, roomCode, authToken } = get()
+    if (ws) {
+      try {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'LEAVE_ROOM', payload: { room_code: roomCode } }))
+        }
+        ws.close()
+      } catch (e) {
+        console.warn('WS close error:', e)
+      }
+    }
+    if (roomCode && authToken) {
+      try {
+        const host = window.location.hostname === 'localhost' ? 'localhost:8000' : window.location.host
+        const protocol = window.location.protocol === 'https:' ? 'https' : 'http'
+        await fetch(`${protocol}://${host}/api/v1/lobby/leave/${roomCode}`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        })
+      } catch (e) {
+        console.warn('Leave room HTTP API error:', e)
+      }
+    }
+    set({
+      roomCode: null,
+      gamePhase: 'loading',
+      currentScreen: SCREENS.CINEMATIC,
+      role: null,
+      partnerInfo: null,
+      otherPlayers: {},
+      worldEvidence: [],
+      evidenceBoard: [],
+      tasks: [],
+      chatMessages: [],
+      ws: null,
+      gameResult: null,
+      npcDialogVisible: false,
+      npcDialogContent: null,
+      cctvReport: null,
+      movementTraceReport: null,
+      activeTaskId: null,
+      activeMinigameTask: null,
+    })
+  },
 }))
 
 export default useGameStore
+

@@ -70,3 +70,10 @@ def get_room_details(room_code: str):
         )
     return room.to_dict()
 
+@router.post("/leave/{room_code}")
+def leave_room_endpoint(room_code: str, current_user: User = Depends(get_current_user)):
+    clean_code = room_code.strip().upper()
+    room = lobby_manager.leave_room(clean_code, current_user.id)
+    return {"message": "Successfully left room", "room_code": clean_code}
+
+
