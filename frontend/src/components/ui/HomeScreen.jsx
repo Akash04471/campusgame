@@ -533,7 +533,7 @@ function AuthPanel({ isOpen, onAuth, onClose }) {
 /* ─────────────────────────────────────────────
    COMPONENT — Lobby Hub
    ───────────────────────────────────────────── */
-const STANDARD_GAME_LABEL = '10 MIN · STANDARD'
+const STANDARD_GAME_LABEL = '5 MIN · STANDARD'
 
 function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
   const [tab, setTab] = useState('create')
@@ -607,9 +607,9 @@ function LobbyHub({ auth, onPlay, onJoinedRoom, onClose }) {
           <div className="cu-modal-body">
             <p className="cu-modal-field-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               🕐 GAME MODE
-              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', color: '#06b6d4', background: 'rgba(6,182,212,0.1)', border: '1px solid rgba(6,182,212,0.3)', borderRadius: 4, padding: '2px 8px' }}>STANDARD — 10 MINUTES</span>
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', color: '#06b6d4', background: 'rgba(6,182,212,0.1)', border: '1px solid rgba(6,182,212,0.3)', borderRadius: 4, padding: '2px 8px' }}>STANDARD — 5 MINUTES</span>
             </p>
-            <p style={{ fontSize: '0.78rem', color: '#64748b', fontFamily: 'monospace', marginBottom: 12 }}>All investigation sessions run for a fixed 10-minute window.</p>
+            <p style={{ fontSize: '0.78rem', color: '#64748b', fontFamily: 'monospace', marginBottom: 12 }}>All investigation sessions run for a fixed 5-minute window.</p>
             <p className="cu-modal-field-label" style={{ marginTop: 16 }}>MAX PLAYERS — {maxPlayers} {maxPlayers === 1 ? '(SINGLE PLAYER & BOTS)' : ''}</p>
             <input type="range" min={1} max={6} value={maxPlayers} onChange={e => setMaxPlayers(+e.target.value)}
               style={{ width: '100%', accentColor: '#dc2626' }} />
