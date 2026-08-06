@@ -11,7 +11,7 @@ ROLE_DISTRIBUTIONS = {
     6: ['DETECTIVE', 'INVESTIGATOR', 'INVESTIGATOR', 'INVESTIGATOR', 'MASTERMIND', 'CONSPIRATOR'],
 }
 
-# Single standard ruleset — fixed 10-minute game duration for all rooms.
+# Single standard ruleset — fixed 5-minute game duration for all rooms.
 STANDARD_MODIFIERS = {
     'evidence_density_multiplier': 1.0,
     'npc_reliability_range': (0.60, 0.85),
