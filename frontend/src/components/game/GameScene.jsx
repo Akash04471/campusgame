@@ -7,6 +7,7 @@ import Player from './Player'
 import EvidenceItems from './EvidenceItems'
 import TaskZones from './TaskZones'
 import NPCCharacters from './NPCCharacters'
+import RemotePlayers from './RemotePlayers'
 import GameHUD from '../ui/GameHUD'
 import MeetingScreen from '../ui/MeetingScreen'
 import DecisionPhaseScreen from '../ui/DecisionPhaseScreen'
@@ -87,6 +88,7 @@ export default function GameScene() {
           <EvidenceItems />
           <TaskZones />
           <NPCCharacters />
+          <RemotePlayers />
         </Suspense>
       </Canvas>
 
