@@ -1127,17 +1127,34 @@ function WaitingRoom({ auth, room: init, onGameStarted, onClose }) {
     const wsUrl = `${getWsProtocol()}://${getBackendHost()}/ws/lobby/${room.room_code}/${myId}?token=${encodeURIComponent(auth.token)}`
     const ws = new WebSocket(wsUrl)
     wsRef.current = ws
+
+    ws.onopen = () => {
+      setWsError('')
+    }
+
     ws.onmessage = (e) => {
       try {
         const { type, payload } = JSON.parse(e.data)
-        if (type === 'ERROR') setWsError(payload?.message || 'WebSocket connection error.')
+        if (type === 'ERROR') {
+          setWsError(payload?.message || 'WebSocket connection error.')
+        } else {
+          setWsError('')
+        }
         if (type === 'LOBBY_STATE' || type === 'LOBBY_STATE_UPDATE') setRoom(payload)
-        if (type === 'ROLE_REVEAL' || type === 'GAME_STARTED') onGameStarted(room.room_code, myId, auth.username)
+        if (type === 'ROLE_REVEAL' || type === 'GAME_STARTED') onGameStarted(room.room_code, myId, auth?.username || 'Agent')
       } catch {}
     }
-    ws.onerror = () => setWsError('Connection error to tactical deck server.')
-    return () => ws.close()
-  }, [auth, room.room_code, myId, onGameStarted])
+
+    ws.onerror = () => {
+      if (ws.readyState !== WebSocket.OPEN) {
+        setWsError('Connection error to tactical deck server.')
+      }
+    }
+
+    return () => {
+      ws.close()
+    }
+  }, [auth?.token, auth?.username, room.room_code, myId, onGameStarted])
 
   const toggleReady = () => wsRef.current?.readyState === WebSocket.OPEN &&
     wsRef.current.send(JSON.stringify({ action: 'TOGGLE_READY' }))
