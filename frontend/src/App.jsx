@@ -315,9 +315,10 @@ export default function App() {
   const roomCode         = useGameStore((s) => s.roomCode)
   const playerId         = useGameStore((s) => s.playerId)
   const storeCurrentScreen  = useGameStore((s) => s.currentScreen)
-  const setCurrentScreen     = useGameStore((s) => s.setCurrentScreen)
-  const setHasSeenCinematic  = useGameStore((s) => s.setHasSeenCinematic)
-  const updateOtherPlayer    = useGameStore((s) => s.updateOtherPlayer)
+  const setCurrentScreen    = useGameStore((s) => s.setCurrentScreen)
+  const setTimerSeconds     = useGameStore((s) => s.setTimerSeconds)
+  const setHasSeenCinematic = useGameStore((s) => s.setHasSeenCinematic)
+  const updateOtherPlayer   = useGameStore((s) => s.updateOtherPlayer)
 
 
   // Sync local screen state with Zustand store currentScreen
@@ -357,10 +358,15 @@ export default function App() {
   const handlePlay = useCallback(() => {
     setScreen('game')
     setCurrentScreen(SCREENS.GAMEPLAY)
-    if (!roomCode || String(roomCode).startsWith('SOLO')) {
+    const state = useGameStore.getState()
+    const currentRoomCode = state.roomCode
+    const isSolo = !currentRoomCode || String(currentRoomCode).startsWith('SOLO') || !state.authToken
+
+    if (isSolo) {
       // Offline / solo mode — seed state and show Role Reveal Screen
       setGamePhase('role_reveal')
       setRole('DETECTIVE')
+      setTimerSeconds(300)
       setAbilities([
         { ability_id: 'CCTV_ANALYSIS',    name: 'CCTV Analysis',              description: 'Review surveillance from Security Office',       location_required: 'Security Office', duration_seconds: 90, cooldown_remaining: 0, is_on_cooldown: false, uses_remaining: 99, max_uses: 99 },
         { ability_id: 'DIGITAL_ANALYSIS', name: 'Digital Evidence Analysis',  description: 'Recover server access logs from Computer Lab',   location_required: 'Computer Lab',    duration_seconds: 60, cooldown_remaining: 0, is_on_cooldown: false, uses_remaining: 99, max_uses: 99 },
@@ -390,10 +396,16 @@ export default function App() {
       updateOtherPlayer('9002', { username: 'Officer Alex (Bot)', position: [-10.0, 0.5, 15.0], rotation: 0, role: 'MASTERMIND' })
       updateOtherPlayer('9003', { username: 'Dr. Viktor (Bot)', position: [20.0, 0.5, 5.0], rotation: 0, role: 'CONSPIRATOR' })
     }
-  }, [roomCode, setGamePhase, setRole, setAbilities, setTasks, setWorldEvidence, setNpcs, updateOtherPlayer, setCurrentScreen])
+  }, [setGamePhase, setRole, setTimerSeconds, setAbilities, setTasks, setWorldEvidence, setNpcs, updateOtherPlayer, setCurrentScreen])
 
   const handleBeginInvestigation = useCallback(() => {
     setGamePhase('exploration')
+    const state = useGameStore.getState()
+    if (!state.roomCode || String(state.roomCode).startsWith('SOLO') || !state.authToken) {
+      state.updateOtherPlayer('9001', { username: 'Agent Maya (Bot)', position: [12.0, 0.5, -10.0], rotation: 0, role: 'INVESTIGATOR' })
+      state.updateOtherPlayer('9002', { username: 'Officer Alex (Bot)', position: [-10.0, 0.5, 15.0], rotation: 0, role: 'MASTERMIND' })
+      state.updateOtherPlayer('9003', { username: 'Dr. Viktor (Bot)', position: [20.0, 0.5, 5.0], rotation: 0, role: 'CONSPIRATOR' })
+    }
   }, [setGamePhase])
 
   // Solo mode autonomous bot chat loop

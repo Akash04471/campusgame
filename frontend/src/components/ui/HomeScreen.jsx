@@ -1160,7 +1160,7 @@ function WaitingRoom({ auth, room: init, onGameStarted, onClose }) {
     wsRef.current.send(JSON.stringify({ action: 'TOGGLE_READY' }))
 
   const startGame = () => {
-    if (wsRef.current?.readyState === WebSocket.OPEN && !String(room.room_code).startsWith('SOLO') && room.max_players > 1) {
+    if (wsRef.current?.readyState === WebSocket.OPEN && !String(room.room_code).startsWith('SOLO')) {
       wsRef.current.send(JSON.stringify({ action: 'START_GAME' }))
     } else {
       onGameStarted(room.room_code, myId, auth?.username || 'Agent')
@@ -1305,9 +1305,13 @@ export default function HomeScreen({ onPlay }) {
     setPlayerName(authData.username)
     setPlayerId(authData.userId)
     setAuthToken(authData.token)
-    if (!authData.token) { onPlay(); return }
+    if (!authData.token) {
+      setRoomCode('SOLO')
+      onPlay()
+      return
+    }
     setFlow('lobby')
-  }, [onPlay, setPlayerName, setPlayerId, setAuthToken])
+  }, [onPlay, setPlayerName, setPlayerId, setAuthToken, setRoomCode])
 
   const handleLogout = useCallback(() => {
     setAuth(null)
