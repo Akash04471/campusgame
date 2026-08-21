@@ -1,16 +1,35 @@
 # Campus Undercover: The Christ Mystery
 
+A multiplayer social deduction and investigation game set on a 3D campus. Players are assigned secret roles and must gather evidence, complete tasks, and identify the hidden threat before time runs out.
+
+---
+
+## Table of Contents
+
+1. [Project Overview](#1-project-overview)
+2. [Tech Stack](#2-tech-stack)
+3. [System Architecture](#3-system-architecture)
+4. [Frontend Structure](#4-frontend-structure)
+5. [Backend Structure](#5-backend-structure)
+6. [Database Structure](#6-database-structure)
+7. [Game Logic](#7-game-logic)
+8. [Setup & Installation](#8-setup--installation)
+9. [Contributors & Contributions](#9-contributors--contributions)
+10. [Folder Structure](#10-folder-structure)
+
+---
+
 ## 1. Project Overview
 
 Campus Undercover: The Christ Mystery is a multiplayer social deduction and investigation game built as a 3D campus-themed browser experience. Players are assigned secret roles and must investigate evidence, complete tasks, and identify the hidden threat before time runs out.
 
 The game follows a deduction loop similar to hidden-role games:
 
-- one player is the Detective,
-- one or more players are Investigators,
-- one player is the Mastermind,
-- one player is the Conspirator,
-- the goal is to expose the villain team through evidence gathering, voting, and accusation logic.
+- One player is the **Detective**
+- One or more players are **Investigators**
+- One player is the **Mastermind**
+- One player is the **Conspirator**
+- The goal is to expose the villain team through evidence gathering, voting, and accusation logic
 
 The project combines a React + Three.js frontend with a FastAPI backend and WebSocket-based multiplayer architecture. It includes lobby creation, role assignment, custom game loops, task progression, bot players, investigations, and end-of-match resolution.
 
@@ -20,59 +39,85 @@ The project combines a React + Three.js frontend with a FastAPI backend and WebS
 
 ### Frontend
 
-- React 18
-- Vite
-- JavaScript / JSX
-- @react-three/fiber
-- @react-three/drei
-- three.js
-- Zustand for client state
-- Lucide React for icons
-- WebSockets for live game updates
+| Category | Technology |
+| --- | --- |
+| Framework | React 18 |
+| Build tool | Vite |
+| Language | JavaScript / JSX |
+| 3D rendering | @react-three/fiber, @react-three/drei, three.js |
+| State management | Zustand |
+| Icons | Lucide React |
+| Real-time updates | WebSockets |
 
 ### Backend
 
-- Python 3
-- FastAPI
-- SQLAlchemy 2
-- Pydantic and Pydantic Settings
-- Python-Jose (JWT)
-- Python-Multipart
-- PostgreSQL driver: psycopg2-binary
-- Alembic for migrations
-- Uvicorn for running the server
+| Category | Technology |
+| --- | --- |
+| Language | Python 3 |
+| Framework | FastAPI |
+| ORM | SQLAlchemy 2 |
+| Validation | Pydantic, Pydantic Settings |
+| Auth | Python-Jose (JWT), Python-Multipart |
+| DB driver | psycopg2-binary |
+| Migrations | Alembic |
+| Server | Uvicorn |
 
-### Database / Other
+### Database / Infrastructure
 
 - PostgreSQL 15
 - Docker / Docker Compose
 - Alembic migrations
-- JWT-based auth
-- WebSocket channel communication for lobby and game updates
+- JWT-based authentication
+- WebSocket channels for lobby and in-game state
 
 ---
 
-## 3. Project Architecture
+## 3. System Architecture
 
-The repository is separated into two main runtime components:
+The repository is split into two runtime components: a **frontend application** (`frontend/`) and a **backend API/game server** (`backend/`).
 
-1. Frontend application in `frontend/`
-2. Backend API/game server in `backend/`
-
-The flow is:
-
-- The frontend renders the 3D campus, player avatars, UI panels, and lobby authentication flow.
+- The frontend renders the 3D campus, player avatars, UI panels, and the lobby/authentication flow.
 - The backend exposes REST endpoints for authentication and lobby management.
-- Real-time gameplay is delivered over WebSocket channels for player movement, task events, chat, meeting state, evidence updates, and resolution.
+- Real-time gameplay (movement, tasks, chat, meetings, evidence, resolution) is delivered over WebSocket channels.
 - PostgreSQL stores persistent user accounts and match outcome statistics.
-- The backend keeps active room/game state in memory during a match, while database models hold the persistent records for users and session results.
+- Active room/game state lives in memory on the backend during a match, while the database holds persistent records for users and session results.
 
-In practice, the architecture is:
+```mermaid
+flowchart TB
+    subgraph Client["Frontend (React + Three.js)"]
+        UI["UI Layer\nHomeScreen / RoleReveal /\nDecisionPhase / Results"]
+        Scene["3D Game Scene\nPlayer, RemotePlayers, Tasks, NPCs"]
+        Store["Zustand Store\ngameStore.js"]
+        UI --- Store
+        Scene --- Store
+    end
 
-- `frontend` = presentation layer and client-side game loop
-- `backend/app/main.py` = central server, room lifecycle, game loop, WebSocket broadcasting, session orchestration
-- `backend/app/game/*` = gameplay logic modules for tasks, evidence, roles, NPC behavior, ability use, meetings, and resolution
-- `backend/app/db/*` = data models, database session setup, and migration metadata
+    subgraph Server["Backend (FastAPI)"]
+        REST["REST API\n/api/v1/auth\n/api/v1/lobby"]
+        WS["WebSocket Endpoints\n/ws/lobby/{room_code}/{player_id}\n/ws/game/{room_code}/{player_id}"]
+        Engine["In-Memory Game Engine\nactive_game_states + game loop"]
+        Modules["Gameplay Modules\nrole_service, task_manager,\nevidence_manager, npc_manager,\nmeeting_manager, resolution_service,\nbot_manager, cctv_service"]
+        REST --> Engine
+        WS <--> Engine
+        Engine --> Modules
+    end
+
+    subgraph Data["PostgreSQL 15"]
+        DB[("users\ngame_sessions\nuser_game_stats")]
+    end
+
+    Store -- "HTTPS (fetch)" --> REST
+    Store <-- "WebSocket (live state)" --> WS
+    REST -- "SQLAlchemy ORM" --> DB
+    Engine -- "persist results\n(session end)" --> DB
+```
+
+**Layer summary**
+
+- `frontend` — presentation layer and client-side game loop
+- `backend/app/main.py` — central server: room lifecycle, game loop, WebSocket broadcasting, session orchestration
+- `backend/app/game/*` — gameplay logic modules for tasks, evidence, roles, NPC behavior, abilities, meetings, and resolution
+- `backend/app/db/*` — data models, database session setup, and migration metadata
 
 ---
 
@@ -86,37 +131,39 @@ The frontend is organized under `frontend/src/`.
 - `src/components/ui/` — HUD, lobby, screens, overlays, task panels, results panels, decision screens
 - `src/store/` — Zustand store for app state and live game state
 - `src/utils/` — helper modules such as audio and evidence visuals
-- `src/config/` — configuration-related frontend files (currently minimal but present)
+- `src/config/` — configuration-related frontend files
 
 ### Key frontend files
 
-- `src/App.jsx` — app root, socket lifecycle, onboarding flow, solo/offline setup, game bootstrap
-- `src/main.jsx` — React entry point
-- `src/store/gameStore.js` — central state management for game phase, player data, evidence, chat, task state, and results
-- `src/components/game/GameScene.jsx` — main 3D scene, world composition, overlays, and HUD integration
-- `src/components/game/Player.jsx` — local player avatar and movement behavior
-- `src/components/game/RemotePlayers.jsx` — remote player rendering and role badges
-- `src/components/ui/HomeScreen.jsx` — lobby/auth screen and API helpers
-- `src/components/ui/RoleRevealScreen.jsx` — role identity reveal screen
-- `src/components/ui/DecisionPhaseScreen.jsx` — Detective/Investigator vote submission screen
-- `src/components/ui/ResultsScreen.jsx` — end-of-game summary, winner reveal, and dossier tabs
-- `src/components/ui/TaskMinigame.jsx` — task interaction mini-game logic
-- `src/components/ui/ChatPanel.jsx` — in-game chat UI
+| File | Responsibility |
+| --- | --- |
+| `src/App.jsx` | App root, socket lifecycle, onboarding flow, solo/offline setup, game bootstrap |
+| `src/main.jsx` | React entry point |
+| `src/store/gameStore.js` | Central state for game phase, player data, evidence, chat, task state, results |
+| `src/components/game/GameScene.jsx` | Main 3D scene, world composition, overlays, HUD integration |
+| `src/components/game/Player.jsx` | Local player avatar and movement behavior |
+| `src/components/game/RemotePlayers.jsx` | Remote player rendering and role badges |
+| `src/components/ui/HomeScreen.jsx` | Lobby/auth screen and API helpers |
+| `src/components/ui/RoleRevealScreen.jsx` | Role identity reveal screen |
+| `src/components/ui/DecisionPhaseScreen.jsx` | Detective/Investigator vote submission screen |
+| `src/components/ui/ResultsScreen.jsx` | End-of-game summary, winner reveal, dossier tabs |
+| `src/components/ui/TaskMinigame.jsx` | Task interaction mini-game logic |
+| `src/components/ui/ChatPanel.jsx` | In-game chat UI |
 
 ### State management
 
-The frontend uses Zustand in `src/store/gameStore.js` to store:
+`src/store/gameStore.js` (Zustand) holds:
 
-- current screen
-- player identity and role
-- room code and WebSocket connection
-- other players
-- tasks and task progress
-- evidence and dossier state
-- game phase and result payload
-- chat and meeting status
+- Current screen
+- Player identity and role
+- Room code and WebSocket connection
+- Other players
+- Tasks and task progress
+- Evidence and dossier state
+- Game phase and result payload
+- Chat and meeting status
 
-This is the primary state source for gameplay and UI transitions.
+This store is the primary source of truth for gameplay and UI transitions.
 
 ---
 
@@ -129,19 +176,19 @@ The backend is organized under `backend/app/`.
 - `app/api/v1/` — REST API routers for auth and lobby endpoints
 - `app/core/` — settings and JWT/security helpers
 - `app/db/` — database models and SQLAlchemy setup
-- `app/game/` — gameplay engine modules for roles, tasks, evidence, NPCs, meetings, and resolution
+- `app/game/` — gameplay engine modules for roles, tasks, evidence, NPCs, meetings, resolution
 - `app/main.py` — FastAPI app entry point, room lifecycle, WebSocket endpoints, game loop
 
 ### API routes
 
-Authentication endpoints:
+**Authentication**
 
 - `POST /api/v1/auth/register`
 - `POST /api/v1/auth/login`
 - `POST /api/v1/auth/login/oauth`
 - `GET /api/v1/auth/me`
 
-Lobby endpoints:
+**Lobby**
 
 - `POST /api/v1/lobby/create`
 - `POST /api/v1/lobby/join`
@@ -149,25 +196,25 @@ Lobby endpoints:
 - `GET /api/v1/lobby/room/{room_code}`
 - `POST /api/v1/lobby/leave/{room_code}`
 
-WebSocket endpoints:
+**WebSocket**
 
 - `/ws/lobby/{room_code}/{player_id}`
 - `/ws/game/{room_code}/{player_id}`
 
 ### Server logic
 
-`backend/app/main.py` contains the core match orchestration:
+`backend/app/main.py` handles core match orchestration:
 
-- room creation and lifecycle
-- player join / lobby handling
-- role assignment generation
-- task assignment and progress tracking
-- bot movement and bot chat logic
-- evidence collection and event broadcasting
-- meeting timing and decision phase control
-- final game resolution and winner calculation
+- Room creation and lifecycle
+- Player join / lobby handling
+- Role assignment generation
+- Task assignment and progress tracking
+- Bot movement and bot chat logic
+- Evidence collection and event broadcasting
+- Meeting timing and decision phase control
+- Final game resolution and winner calculation
 
-It also manages a central in-memory game state for each room using `active_game_states` and a periodic game loop.
+It maintains a central in-memory game state per room (`active_game_states`) alongside a periodic game loop.
 
 ---
 
@@ -175,11 +222,46 @@ It also manages a central in-memory game state for each room using `active_game_
 
 The project uses PostgreSQL with SQLAlchemy ORM and Alembic migrations.
 
-### Current schema
+### Entity-Relationship Diagram
 
-#### `users`
+```mermaid
+erDiagram
+    USERS ||--o{ USER_GAME_STATS : "has many"
+    GAME_SESSIONS ||--o{ USER_GAME_STATS : "has many"
 
-Fields:
+    USERS {
+        int id PK
+        string username UK
+        string email UK
+        string hashed_password
+        bool is_active
+        datetime created_at
+    }
+
+    GAME_SESSIONS {
+        uuid id PK
+        string status
+        string difficulty
+        string winner_faction
+        datetime created_at
+        datetime ended_at
+    }
+
+    USER_GAME_STATS {
+        int id PK
+        int user_id FK
+        uuid session_id FK
+        string role
+        int evidence_collected
+        int tasks_completed
+        int points_earned
+        bool won
+    }
+```
+
+### Table details
+
+**`users`**
 
 - `id` — integer primary key
 - `username` — unique username
@@ -188,46 +270,42 @@ Fields:
 - `is_active` — active/inactive flag
 - `created_at` — timestamp
 
-This table stores authentication and account data.
+Stores authentication and account data.
 
-#### `game_sessions`
-
-Fields:
+**`game_sessions`**
 
 - `id` — UUID primary key
-- `status` — waiting / playing / finished
+- `status` — `waiting` / `playing` / `finished`
 - `difficulty` — standard (current game rules are fixed to a standard ruleset)
-- `winner_faction` — winning faction such as `INVESTIGATORS` or `VILLAINS`
+- `winner_faction` — `INVESTIGATORS` or `VILLAINS`
 - `created_at` — creation timestamp
 - `ended_at` — end timestamp
 
-#### `user_game_stats`
-
-Fields:
+**`user_game_stats`**
 
 - `id` — integer primary key
 - `user_id` — FK to `users.id`
 - `session_id` — FK to `game_sessions.id`
-- `role` — DETECTIVE / INVESTIGATOR / MASTERMIND / CONSPIRATOR
+- `role` — `DETECTIVE` / `INVESTIGATOR` / `MASTERMIND` / `CONSPIRATOR`
 - `evidence_collected`
 - `tasks_completed`
 - `points_earned`
 - `won`
 
-Relationships:
+**Relationships**
 
-- `User` has a one-to-many relationship with `UserGameStats`
-- `GameSession` has a one-to-many relationship with `UserGameStats`
+- `User` → `UserGameStats`: one-to-many
+- `GameSession` → `UserGameStats`: one-to-many
 
 ### Migration notes
 
-The Alembic directory exists under `backend/alembic/` and includes the initial migration file `backend/alembic/versions/b9a2f4653155_initial_schema.py`.
+Alembic files live under `backend/alembic/`, including the initial migration `backend/alembic/versions/b9a2f4653155_initial_schema.py`.
 
-The architecture currently uses:
+The persistence model combines:
 
-- database for persistence of users and session records,
-- in-memory server state for active game runtime,
-- real-time WebSocket payloads for live gameplay state.
+- Database storage for users and session records
+- In-memory server state for active game runtime
+- Real-time WebSocket payloads for live gameplay state
 
 ---
 
@@ -235,7 +313,17 @@ The architecture currently uses:
 
 ### Core game loop
 
-The match is driven by a room-based game lifecycle:
+```mermaid
+flowchart LR
+    A["Create / Join Lobby"] --> B["assign_roles()\nrole_service.py"]
+    B --> C["Role Reveal Phase"]
+    C --> D["Exploration Phase\nEvidence + Tasks"]
+    D --> E{"Task threshold\nreached OR\ntimer expired?"}
+    E -- No --> D
+    E -- Yes --> F["Decision Phase\nDetective accusation +\nInvestigator vote"]
+    F --> G["resolution_service.py\nResolve outcome"]
+    G --> H["Broadcast Result Payload"]
+```
 
 1. A player creates a lobby or joins a waiting room.
 2. The backend assigns roles using `assign_roles()` in `role_service.py`.
@@ -247,49 +335,49 @@ The match is driven by a room-based game lifecycle:
 
 ### Roles
 
-The rules implemented in `role_service.py` support player counts from 1 to 6:
+`role_service.py` supports player counts from 1 to 6, assigning:
 
 - `DETECTIVE`
 - `INVESTIGATOR`
 - `MASTERMIND`
 - `CONSPIRATOR`
 
-The project currently follows a fixed standard ruleset with a 5-minute round, and the code explicitly preserves a standard configuration instead of different difficulty modes.
+The project currently follows a fixed standard ruleset with a 5-minute round; the code explicitly preserves this standard configuration rather than supporting multiple difficulty modes.
 
 ### Win conditions
 
-The resolution logic in `backend/app/game/resolution_service.py` determines the winner by evaluating:
+`backend/app/game/resolution_service.py` determines the winner by evaluating:
 
-- Detective accusation against the actual Mastermind
-- Investigator majority vote against the actual Conspirator
-- overall faction outcome: `INVESTIGATORS` or `VILLAINS`
+- The Detective's accusation against the actual Mastermind
+- The Investigators' majority vote against the actual Conspirator
+- Overall faction outcome: `INVESTIGATORS` or `VILLAINS`
 
-If both accusations are correct, the Investigators win. Otherwise, the Villains win. The game also supports timeout-based villain victory when the countdown expires before tasks are complete.
+If both accusations are correct, the Investigators win. Otherwise, the Villains win. A timeout-based Villain victory also applies if the countdown expires before tasks are complete.
 
 ### Gameplay systems
 
-The backend includes modular systems for:
-
-- `task_manager.py` — task assignment, completion, scoring, room progress
-- `evidence_manager.py` — evidence collection and distribution
-- `npc_manager.py` — NPC behavior and observation logic
-- `ability_manager.py` — role-specific actions and abilities
-- `meeting_manager.py` — phase-based discussion and meeting timing
-- `cctv_service.py` — surveillance and clue generation
-- `correlation_engine.py` — evidence linking and deduction support
-- `suspect_dossier_service.py` — Detective dossier generation
-- `bot_manager.py` and `bot_chat_service.py` — autonomous bot behavior and bot messages
+| Module | Responsibility |
+| --- | --- |
+| `task_manager.py` | Task assignment, completion, scoring, room progress |
+| `evidence_manager.py` | Evidence collection and distribution |
+| `npc_manager.py` | NPC behavior and observation logic |
+| `ability_manager.py` | Role-specific actions and abilities |
+| `meeting_manager.py` | Phase-based discussion and meeting timing |
+| `cctv_service.py` | Surveillance and clue generation |
+| `correlation_engine.py` | Evidence linking and deduction support |
+| `suspect_dossier_service.py` | Detective dossier generation |
+| `bot_manager.py` / `bot_chat_service.py` | Autonomous bot behavior and bot messages |
 
 ### Frontend gameplay flow
 
 The React client renders:
 
-- a campus map in 3D,
-- player movement and interactions,
-- UI to accept evidence and tasks,
-- a meeting screen,
-- accusation and decision phases,
-- a results screen with reveal cards and vote summary.
+- A campus map in 3D
+- Player movement and interactions
+- UI to accept evidence and tasks
+- A meeting screen
+- Accusation and decision phases
+- A results screen with reveal cards and vote summary
 
 ---
 
@@ -305,7 +393,7 @@ The React client renders:
 ### 1. Clone the repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/campusundercover/campusgame.git
 cd campusgame
 ```
 
@@ -315,7 +403,7 @@ cd campusgame
 cd backend
 python -m venv .venv
 source .venv/bin/activate   # Linux/macOS
-# or .venv\Scripts\activate  # Windows
+# .venv\Scripts\activate    # Windows
 pip install -r requirements.txt
 ```
 
@@ -338,7 +426,7 @@ From the `backend` directory:
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-If using Docker Compose for the full stack:
+Or, to run the full stack with Docker Compose:
 
 ```bash
 docker compose up --build
@@ -354,32 +442,34 @@ npm install
 npm run dev -- --host 0.0.0.0
 ```
 
-Then open the frontend in the browser, typically at:
+Then open the app in the browser, typically at:
 
-- http://localhost:5173
+```text
+http://localhost:5173
+```
 
 ### 6. Environment notes
 
-The project includes default settings in `backend/app/core/config.py`:
+Default settings live in `backend/app/core/config.py`:
 
-- `DATABASE_URL` defaults to Postgres on localhost:5432
-- backend CORS allows local frontend origins
+- `DATABASE_URL` defaults to Postgres on `localhost:5432`
+- Backend CORS allows local frontend origins
 
-If needed, override values using environment variables or a `.env` file in the backend directory.
+Override values using environment variables or a `.env` file in the backend directory as needed.
 
 ---
 
 ## 9. Contributors & Contributions
 
-Based on the repository `git log` history, the project currently has three contributors recorded in commit activity.
+Based on the repository's `git log` history, the project has three contributors on record.
 
-| Contributor | Based on actual git history | Contribution summary |
+| Contributor | Focus Area | Contribution Summary |
 | --- | --- | --- |
-| `sudeeepaa` | Multiple feature and stability commits across backend and gameplay work | Worked on backend game logic, lobby/session management, task and evidence systems, role reveal flow, WebSocket stability, single-player mode, decision-phase resolution, and real-time game-state fixes. The commit history includes entries such as “Task Assignment System + Evidence & Detective System”, “Dynamic Voter Status, Immediate Resolution”, and “decision screen real time fix”. |
-| `AkashdeepDey` | Frontend polish, multiplayer fixes, room management, responsive UI, timer and socket issues | Focused on frontend fixes, layout responsiveness, landing page work, multiplayer room and movement sync, timer bug fixes, and stable game launch flows. Commit messages include “Frontend fix v5”, “Fix Multiplayer room issue”, “resolve multiplayer player movement sync across devices”, and “feat: complete social deduction game implementation with responsive UI”. |
-| `snehavvv` | UI and game mechanics on the frontend and gameplay systems | Built major game UI screens and interactive mechanics, including the results screen, decision phase, loading screen, task minigame, task assignment logic, CCTV-related systems, and gameplay flow improvements. Commit history includes entries such as “Result Screen”, “Decision phase”, “TaskMinigame variants”, and “tasks assigning according to the role”. |
+| `sudeeepaa` | Backend & game logic | Backend game logic, lobby/session management, task and evidence systems, role reveal flow, WebSocket stability, single-player mode, decision-phase resolution, and real-time game-state fixes. Notable commits: "Task Assignment System + Evidence & Detective System", "Dynamic Voter Status, Immediate Resolution", "decision screen real time fix". |
+| `AkashdeepDey` | Frontend & multiplayer infrastructure | Frontend fixes, layout responsiveness, landing page work, multiplayer room and movement sync, timer bug fixes, and stable game launch flows. Notable commits: "Frontend fix v5", "Fix Multiplayer room issue", "resolve multiplayer player movement sync across devices", "feat: complete social deduction game implementation with responsive UI". |
+| `snehavvv` | UI & gameplay mechanics | Major game UI screens and interactive mechanics: results screen, decision phase, loading screen, task minigame, task assignment logic, CCTV-related systems, and gameplay flow improvements. Notable commits: "Result Screen", "Decision phase", "TaskMinigame variants", "tasks assigning according to the role". |
 
-No additional active contributors are present in the current commit history at the time of review.
+No additional active contributors appear in the commit history at the time of this review.
 
 ---
 
@@ -465,6 +555,6 @@ campusgame/
 
 ## Summary
 
-Campus Undercover: The Christ Mystery is a full-stack social deduction game that combines 3D campus exploration, hidden-role gameplay, evidence-based investigations, and real-time multiplayer interaction. The codebase is organized around a React frontend, a FastAPI backend, PostgreSQL persistence, and an in-memory server game engine for live room orchestration.
+Campus Undercover: The Christ Mystery is a full-stack social deduction game combining 3D campus exploration, hidden-role gameplay, evidence-based investigation, and real-time multiplayer interaction. The codebase is organized around a React frontend, a FastAPI backend, PostgreSQL persistence, and an in-memory server game engine for live room orchestration.
 
-The project is designed as a browser-based deduction game with role-based hidden information, task completion, bot agents, and a clear end-of-match resolution cycle.
+The project is designed as a browser-based deduction game featuring role-based hidden information, task completion, bot agents, and a clear end-of-match resolution cycle.
