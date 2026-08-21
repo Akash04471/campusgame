@@ -18,7 +18,7 @@ from app.game.evidence_manager import evidence_manager
 from app.game.task_manager import task_manager, AREA_WORLD_POSITIONS
 from app.game.npc_manager import npc_manager
 from app.game.ability_manager import ability_manager
-from app.game.meeting_manager import meeting_manager
+from app.game.meeting_manager import meeting_manager, MEETING_DURATION
 from app.game.resolution_service import resolve_game
 from app.game.cctv_service import get_or_create_cctv_engine, cleanup_cctv_engine
 from app.game.correlation_engine import correlation_engine
