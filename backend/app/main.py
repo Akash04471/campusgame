@@ -195,6 +195,58 @@ async def force_resolve_decision_phase(room_code: str, gs, room, broadcast_func)
     })
 
 
+async def force_resolve_timeout_villains_win(room_code: str, gs, room, broadcast_func):
+    """Triggered when the exploration timer reaches 0 and tasks are incomplete. Villains win automatically."""
+    if getattr(gs, 'decision_resolved', False):
+        return
+    gs.decision_resolved = True
+    gs.decision_phase_active = False
+
+    player_names = {str(pid): p.username for pid, p in room.players.items()}
+    db = SessionLocal()
+    try:
+        result = resolve_game(
+            room_code=room_code,
+            assignments=gs.assignments,
+            mastermind_id=gs.mastermind_id,
+            conspirator_id=gs.conspirator_id,
+            accusation=None,
+            player_names=player_names,
+            session_db_id=getattr(gs, 'db_session_id', None),
+            db=db,
+            investigator_choices=None,
+            forced_winner_faction="VILLAINS",
+            end_reason="TIMEOUT_TASKS_INCOMPLETE"
+        )
+        db.commit()
+    except Exception as e:
+        logger.error(f"[Resolution] Error in force_resolve_timeout_villains_win for room {room_code}: {e}", exc_info=True)
+        result = {
+            'winner_faction': 'VILLAINS',
+            'correct_accusation': False,
+            'winningRoles': ['MASTERMIND', 'CONSPIRATOR'],
+            'mastermind_id': gs.mastermind_id,
+            'conspirator_id': gs.conspirator_id,
+            'actualConspirator': {'id': gs.conspirator_id, 'name': player_names.get(gs.conspirator_id, 'Conspirator')},
+            'actualMastermind': {'id': gs.mastermind_id, 'name': player_names.get(gs.mastermind_id, 'Mastermind')},
+            'detective': {'playerId': None, 'guess': None, 'guessName': None, 'correct': False},
+            'investigators': {'success': False, 'finalGuess': None, 'finalGuessName': None, 'voteCounts': {}, 'correct': False, 'failMessage': 'Time expired before all campus tasks were completed.'},
+            'player_stats': [],
+            'all_roles': gs.assignments,
+            'player_names': player_names,
+            'end_reason': "TIMEOUT_TASKS_INCOMPLETE"
+        }
+    finally:
+        db.close()
+
+    gs.is_active = False
+    room.status = "finished"
+    await broadcast_func(room_code, {
+        "type": "GAME_OVER",
+        "payload": result
+    })
+
+
 async def check_and_resolve_if_all_voted(room_code: str, gs, room, broadcast_func):
     """Check if Detective and all Investigators have submitted their decision choices; resolve immediately if so."""
     if not hasattr(gs, 'decision_votes') or getattr(gs, 'decision_resolved', False):
@@ -261,14 +313,7 @@ async def run_authoritative_game_loop(room_code: str):
                             "payload": {"resumed": True}
                         })
 
-                # 3. Check midpoint meeting (runs at 2.5 minutes / 150s elapsed)
-                if meeting_manager.check_midpoint(room_code, elapsed):
-                    new_mtg = meeting_manager.start_meeting(room_code, "SYSTEM")
-                    if new_mtg:
-                        await broadcast_to_room(room_code, {
-                            "type": "MEETING_STARTED",
-                            "payload": {**new_mtg.to_dict(), "triggered_by": "MIDPOINT"}
-                        })
+                # 3. Midpoint meeting disabled (gameplay remains continuous in 3D world)
 
                 # 4. Tick NPCs
                 npc_manager.tick_npc_movements(room_code, dt=1.0)
@@ -435,16 +480,33 @@ async def run_authoritative_game_loop(room_code: str):
                         if d_remaining <= 0:
                             await force_resolve_decision_phase(room_code, gs, room, broadcast_to_room)
 
-                # 7. Check match exploration timer expiration -> trigger Decision Phase
-                if elapsed >= timer_limit and not getattr(gs, 'decision_phase_active', False) and not getattr(gs, 'decision_resolved', False):
+                # 6.9 Check all tasks completion (100%) -> Trigger Decision Phase for Detective & Investigators
+                progress_info = task_manager.get_room_completion_percent(room_code)
+                tasks_complete = (progress_info.get('percent', 0) >= 100)
+                if tasks_complete and not getattr(gs, 'decision_phase_active', False) and not getattr(gs, 'decision_resolved', False):
                     gs.decision_phase_active = True
                     gs.decision_resolved = False
-                    gs.decision_phase_deadline = _time.time() + 10.0
+                    gs.decision_phase_deadline = _time.time() + 15.0
                     bot_manager.on_phase_change(room_code, 'decision', gs, room, broadcast_to_room, send_to_player, resolve_func=force_resolve_decision_phase)
                     await broadcast_to_room(room_code, {
                         "type": "DECISION_PHASE",
-                        "payload": {"status": "started", "reason": "TIME_EXPIRED", "time_remaining": 10}
+                        "payload": {"status": "started", "reason": "ALL_TASKS_COMPLETED", "time_remaining": 15}
                     })
+
+                # 7. Check match exploration timer expiration:
+                # If timer ends and tasks aren't complete -> VILLAINS WIN INSTANTLY!
+                if elapsed >= timer_limit and not getattr(gs, 'decision_phase_active', False) and not getattr(gs, 'decision_resolved', False):
+                    if not tasks_complete:
+                        await force_resolve_timeout_villains_win(room_code, gs, room, broadcast_to_room)
+                    else:
+                        gs.decision_phase_active = True
+                        gs.decision_resolved = False
+                        gs.decision_phase_deadline = _time.time() + 15.0
+                        bot_manager.on_phase_change(room_code, 'decision', gs, room, broadcast_to_room, send_to_player, resolve_func=force_resolve_decision_phase)
+                        await broadcast_to_room(room_code, {
+                            "type": "DECISION_PHASE",
+                            "payload": {"status": "started", "reason": "ALL_TASKS_COMPLETED", "time_remaining": 15}
+                        })
 
 
             except Exception as tick_error:
@@ -1406,6 +1468,9 @@ async def websocket_game_endpoint(websocket: WebSocket, room_code: str, player_i
                     }
                 })
                 await check_and_resolve_if_all_voted(room_code, gs, room, broadcast_to_room)
+
+            elif action == "FORCE_RESOLVE_DECISION":
+                await force_resolve_decision_phase(room_code, gs, room, broadcast_to_room)
 
 
 

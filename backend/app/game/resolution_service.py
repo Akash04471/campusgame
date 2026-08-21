@@ -65,61 +65,78 @@ def resolve_game(
     session_db_id,
     db: Session,
     investigator_choices: Optional[Dict[str, str]] = None,
+    forced_winner_faction: Optional[str] = None,
+    end_reason: Optional[str] = None,
 ) -> dict:
     """
     Determines the winner, persists stats to DB, returns full result payload.
+    Rules:
+    - Detective votes for MASTERMIND.
+    - Investigators vote for CONSPIRATOR.
+    - If timer expires before all tasks are complete, forced_winner_faction='VILLAINS' (TIMEOUT_TASKS_INCOMPLETE).
     """
     mastermind_id_str = str(mastermind_id) if mastermind_id is not None else None
     conspirator_id_str = str(conspirator_id) if conspirator_id is not None else None
 
+    # Detective evaluation (Detective votes for Mastermind)
     detective_correct = False
-    if accusation and accusation.get('conspirator_accusation') is not None:
-        detective_guess = str(accusation.get('conspirator_accusation'))
-        detective_correct = (detective_guess == conspirator_id_str) if conspirator_id_str else True
+    detective_guess = None
+    if accusation:
+        raw_det_guess = accusation.get('mastermind_accusation') or accusation.get('conspirator_accusation')
+        if raw_det_guess is not None:
+            detective_guess = str(raw_det_guess)
+            detective_correct = (detective_guess == mastermind_id_str) if mastermind_id_str else True
+        else:
+            detective_correct = True if not mastermind_id_str else False
     else:
-        # If there is no Conspirator assigned in this session, Detective is trivially correct
-        detective_correct = True if not conspirator_id_str else False
+        detective_correct = True if not mastermind_id_str else False
 
-    # Calculate Investigator majority resolution
+    # Investigator evaluation (Investigators vote for Conspirator)
     if investigator_choices is not None:
-        # Normalize all investigator choice values to str
         norm_inv_choices = {str(k): str(v) for k, v in investigator_choices.items() if v is not None}
         vote_res = resolve_investigator_votes(norm_inv_choices)
         investigators_correct = False
         if vote_res['success'] and vote_res['final_guess']:
             final_guess_str = str(vote_res['final_guess'])
-            investigators_correct = (final_guess_str == mastermind_id_str) if mastermind_id_str else True
+            investigators_correct = (final_guess_str == conspirator_id_str) if conspirator_id_str else True
         else:
-            investigators_correct = True if not mastermind_id_str else False
+            investigators_correct = True if not conspirator_id_str else False
 
         investigator_vote_result = {
-            'success': vote_res['success'] if mastermind_id_str else True,
+            'success': vote_res['success'] if conspirator_id_str else True,
             'final_guess': vote_res['final_guess'],
             'vote_counts': vote_res['vote_counts'],
             'investigators_correct': investigators_correct,
-            'fail_message': vote_res['fail_message'] if mastermind_id_str else None
+            'correct': investigators_correct,
+            'fail_message': vote_res['fail_message'] if conspirator_id_str else None
         }
-    elif accusation and accusation.get('mastermind_accusation') is not None:
-        mm_guess = str(accusation.get('mastermind_accusation'))
-        inv_correct = (mm_guess == mastermind_id_str) if mastermind_id_str else True
+    elif accusation and (accusation.get('conspirator_accusation') is not None or accusation.get('mastermind_accusation') is not None):
+        inv_guess = str(accusation.get('conspirator_accusation') or accusation.get('mastermind_accusation'))
+        inv_correct = (inv_guess == conspirator_id_str) if conspirator_id_str else True
         investigator_vote_result = {
             'success': True,
-            'final_guess': mm_guess,
-            'vote_counts': {mm_guess: 1},
+            'final_guess': inv_guess,
+            'vote_counts': {inv_guess: 1},
             'investigators_correct': inv_correct,
+            'correct': inv_correct,
             'fail_message': None
         }
     else:
         investigator_vote_result = {
-            'success': True if not mastermind_id_str else False,
+            'success': True if not conspirator_id_str else False,
             'final_guess': None,
             'vote_counts': {},
-            'investigators_correct': True if not mastermind_id_str else False,
-            'fail_message': None if not mastermind_id_str else "The Investigators could not reach a majority decision."
+            'investigators_correct': True if not conspirator_id_str else False,
+            'correct': True if not conspirator_id_str else False,
+            'fail_message': None if not conspirator_id_str else "The Investigators could not reach a majority decision."
         }
 
-    correct_accusation = detective_correct and investigator_vote_result['investigators_correct']
-    winner_faction = 'INVESTIGATORS' if correct_accusation else 'VILLAINS'
+    if forced_winner_faction:
+        winner_faction = forced_winner_faction
+        correct_accusation = False
+    else:
+        correct_accusation = detective_correct and investigator_vote_result['investigators_correct']
+        winner_faction = 'INVESTIGATORS' if correct_accusation else 'VILLAINS'
 
     # Determine win status per player
     investigator_roles = {'DETECTIVE', 'INVESTIGATOR'}
@@ -211,6 +228,7 @@ def resolve_game(
         'player_stats': player_results,
         'all_roles': assignments,
         'player_names': player_names,
+        'end_reason': end_reason,
     }
 
 

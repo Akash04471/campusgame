@@ -224,6 +224,7 @@ export default function GameResultsScreen() {
     player_stats = [],
     all_roles = {},
     player_names = {},
+    end_reason,
   } = gameResult
 
   // Normalize actual Conspirator & Mastermind data
@@ -368,7 +369,9 @@ export default function GameResultsScreen() {
                 <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: '#cbd5e1', fontFamily: 'monospace' }}>
                   {investigatorsWon
                     ? 'The criminal syndicate was successfully identified and brought to justice.'
-                    : 'The Mastermind and Conspirator evaded detection and executed their scheme.'}
+                    : end_reason === 'TIMEOUT_TASKS_INCOMPLETE'
+                      ? '⏱️ Time expired before all campus tasks were completed. The Mastermind executed their scheme.'
+                      : 'The Mastermind and Conspirator evaded detection and executed their scheme.'}
                 </p>
               </div>
             </div>

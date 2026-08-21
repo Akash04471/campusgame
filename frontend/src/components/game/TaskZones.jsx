@@ -328,8 +328,8 @@ function SingleTaskZone({ task }) {
         </group>
       )}
 
-      {/* ── 3D Waypoint UI Badge ── */}
-      {isTracked && (
+      {/* ── 3D Waypoint UI Badge (hidden while interacting with minigame modal) ── */}
+      {isTracked && !activeMinigameTask && (
         <Html position={[0, 4.5, 0]} center distanceFactor={14}>
           <div className={`game-waypoint-marker ${isInZone ? 'arrived' : ''}`}>
             <div className="waypoint-label">
@@ -341,8 +341,8 @@ function SingleTaskZone({ task }) {
         </Html>
       )}
 
-      {/* ── "Hold E" HUD prompt — visible ONLY when task is started, inside zone, and not done ── */}
-      {isStarted && isInZone && !task.completed && (
+      {/* ── "Hold E" HUD prompt — visible ONLY when task is started, inside zone, not done, and minigame is not open ── */}
+      {isStarted && isInZone && !task.completed && !activeMinigameTask && (
         <Html position={[0, 2.2, 0]} center distanceFactor={10}>
           <div className="task-interact-prompt arrived-prompt">
             {isInteracting.current ? '⚡ Interacting…' : '🎯 You\'ve Arrived — Hold [E]'}

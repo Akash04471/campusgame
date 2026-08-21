@@ -85,79 +85,53 @@ export default function DecisionPhaseScreen() {
     return () => clearInterval(interval)
   }, [gamePhase])
 
-  // ── Solo-mode auto bot voting ──────────────────────────────────────────────
-  // When there is no WebSocket (SOLO mode), wait for the 10-second timer to reach 0
-  // before resolving and showing the Results Screen.
-  const soloResolvedRef = useRef(false)
+  // ── Auto resolution on timer timeout or when all votes in ──
+  const autoResolvedRef = useRef(false)
   useEffect(() => {
     if (gamePhase !== 'decision' && gamePhase !== 'accusation') {
-      soloResolvedRef.current = false
+      autoResolvedRef.current = false
       return
     }
-    if (ws && ws.readyState === WebSocket.OPEN) return  // multiplayer — let backend handle it
 
-    if (timerSeconds <= 0 && !soloResolvedRef.current) {
-      soloResolvedRef.current = true
+    if (timerSeconds <= 0 && !autoResolvedRef.current) {
+      autoResolvedRef.current = true
 
-      const state = useGameStore.getState()
-      const myRole = (state.role || 'DETECTIVE').toUpperCase()
-
-      // Solo assignments: player=DETECTIVE, 9001=INVESTIGATOR, 9002=MASTERMIND, 9003=CONSPIRATOR
-      const soloConspiratorId = '9003'
-      const soloMastermindId  = '9002'
-
-      // Bots target the true villain roles so resolution depends on the human player's choice
-      const detectiveGuess   = state.decisionPhase?.detectiveChoice   || (myRole === 'DETECTIVE' ? null : soloConspiratorId)
-      const investigatorGuess = state.decisionPhase?.investigatorChoices?.['9001'] || (myRole === 'INVESTIGATOR' ? null : soloMastermindId)
-
-      const detectiveCorrect   = String(detectiveGuess) === String(soloConspiratorId)
-      const investigatorCorrect = String(investigatorGuess) === String(soloMastermindId)
-      const investigatorsWon   = detectiveCorrect && investigatorCorrect
-
-      const result = {
-        winner_faction: investigatorsWon ? 'INVESTIGATORS' : 'VILLAINS',
-        winningRoles: investigatorsWon ? ['DETECTIVE', 'INVESTIGATOR'] : ['MASTERMIND', 'CONSPIRATOR'],
-        mastermind_id: soloMastermindId,
-        conspirator_id: soloConspiratorId,
-        actualConspirator: { id: soloConspiratorId, name: 'Dr. Viktor (Bot)' },
-        actualMastermind:  { id: soloMastermindId,  name: 'Officer Alex (Bot)' },
-        detective: {
-          playerId: String(state.playerId || '1'),
-          guess: detectiveGuess,
-          guessName: detectiveGuess ? (detectiveGuess === '9001' ? 'Agent Maya (Bot)' : detectiveGuess === '9002' ? 'Officer Alex (Bot)' : detectiveGuess === '9003' ? 'Dr. Viktor (Bot)' : 'You') : 'None',
-          correct: detectiveCorrect,
-        },
-        investigators: {
-          success: true,
-          finalGuess: investigatorGuess,
-          finalGuessName: investigatorGuess === '9002' ? 'Officer Alex (Bot)' : investigatorGuess === '9001' ? 'Agent Maya (Bot)' : investigatorGuess === '9003' ? 'Dr. Viktor (Bot)' : 'You',
-          correct: investigatorCorrect,
-          voteCounts: { [investigatorGuess]: 1 },
-          failMessage: '',
-        },
-        detectiveCorrect,
-        investigatorVoteResult: { success: true, correct: investigatorCorrect },
-        player_stats: [
-          { player_id: String(state.playerId || '1'), username: 'You', role: myRole, points_earned: detectiveCorrect ? 100 : 30, tasks_completed: 2, won: investigatorsWon },
-          { player_id: '9001', username: 'Agent Maya (Bot)', role: 'INVESTIGATOR', points_earned: investigatorCorrect ? 80 : 20, tasks_completed: 3, won: investigatorsWon },
-          { player_id: '9002', username: 'Officer Alex (Bot)', role: 'MASTERMIND', points_earned: investigatorsWon ? 0 : 90, tasks_completed: 3, won: !investigatorsWon },
-          { player_id: '9003', username: 'Dr. Viktor (Bot)', role: 'CONSPIRATOR', points_earned: investigatorsWon ? 0 : 90, tasks_completed: 2, won: !investigatorsWon },
-        ],
-        all_roles: {
-          [String(state.playerId || '1')]: myRole,
-          '9001': 'INVESTIGATOR',
-          '9002': 'MASTERMIND',
-          '9003': 'CONSPIRATOR',
-        },
-        player_names: {
-          [String(state.playerId || '1')]: 'You',
-          '9001': 'Agent Maya (Bot)',
-          '9002': 'Officer Alex (Bot)',
-          '9003': 'Dr. Viktor (Bot)',
-        },
+      // If in multiplayer, request force resolve from server
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action: "FORCE_RESOLVE_DECISION" }))
       }
 
-      state.setGameResult(result)
+      // Safety timeout: if server hasn't transitioned within 1.2 seconds, resolve on client
+      const fallbackTimer = setTimeout(() => {
+        const state = useGameStore.getState()
+        if (state.gamePhase === 'decision' || state.gamePhase === 'accusation') {
+          const myRole = (state.role || 'DETECTIVE').toUpperCase()
+          const detectiveGuess = state.decisionPhase?.detectiveChoice
+          const investigatorGuess = Object.values(state.decisionPhase?.investigatorChoices || {})[0]
+
+          const detectiveCorrect = Boolean(detectiveGuess)
+          const investigatorCorrect = Boolean(investigatorGuess)
+          const investigatorsWon = detectiveCorrect && investigatorCorrect
+
+          const result = state.gameResult || {
+            winner_faction: investigatorsWon ? 'INVESTIGATORS' : 'VILLAINS',
+            winningRoles: investigatorsWon ? ['DETECTIVE', 'INVESTIGATOR'] : ['MASTERMIND', 'CONSPIRATOR'],
+            actualConspirator: { id: '9003', name: 'Dr. Viktor (Bot)' },
+            actualMastermind: { id: '9002', name: 'Officer Alex (Bot)' },
+            detective: { playerId: String(state.playerId || '1'), guess: detectiveGuess, correct: detectiveCorrect },
+            investigators: { success: true, finalGuess: investigatorGuess, correct: investigatorCorrect, voteCounts: {} },
+            detectiveCorrect,
+            investigatorVoteResult: { success: true, correct: investigatorCorrect },
+            player_stats: [],
+            all_roles: {},
+            player_names: {},
+          }
+          state.setGameResult(result)
+          state.setGamePhase('results')
+        }
+      }, 1200)
+
+      return () => clearTimeout(fallbackTimer)
     }
   }, [gamePhase, timerSeconds, ws])
 
@@ -170,7 +144,7 @@ export default function DecisionPhaseScreen() {
     setSelectedCandidate(candidateId)
   }
 
-  // Handler for Detective submission
+  // Handler for Detective submission (votes for MASTERMIND)
   const handleSubmitDetective = () => {
     if (!selectedCandidate || isSubmitted) return
 
@@ -183,12 +157,13 @@ export default function DecisionPhaseScreen() {
         action: 'SUBMIT_DECISION',
         role: 'DETECTIVE',
         voter_id: pidStr,
+        mastermind_choice: selectedCandidate,
         conspirator_choice: selectedCandidate,
       }))
     }
   }
 
-  // Handler for Investigator submission
+  // Handler for Investigator submission (votes for CONSPIRATOR)
   const handleSubmitInvestigator = () => {
     if (!selectedCandidate || isSubmitted) return
 
@@ -201,6 +176,7 @@ export default function DecisionPhaseScreen() {
         action: 'SUBMIT_DECISION',
         role: 'INVESTIGATOR',
         voter_id: pidStr,
+        conspirator_choice: selectedCandidate,
         mastermind_choice: selectedCandidate,
       }))
     }
@@ -232,25 +208,25 @@ export default function DecisionPhaseScreen() {
         </div>
 
 
-        {/* ── 1. DETECTIVE VIEW ── */}
+        {/* ── 1. DETECTIVE VIEW (VOTES FOR MASTERMIND) ── */}
         {isDetective && !isSubmitted && (
           <div className="decision-role-section">
             <div className="accusation-header">
-              <h2>🕵️ DETECTIVE DECISION</h2>
+              <h2>🕵️ DETECTIVE FINAL ACCUSATION</h2>
               <p className="accusation-sub">
-                Select exactly <strong>ONE</strong> player as your <strong>Conspirator</strong> guess.
+                All campus tasks secured! Select exactly <strong>ONE</strong> suspect as your <strong>Mastermind</strong> accusation.
               </p>
             </div>
 
             <div className="accusation-form">
               <div className="accusation-field">
-                <label style={{ color: '#f87171', fontWeight: 'bold' }}>Identify Conspirator:</label>
+                <label style={{ color: '#ef4444', fontWeight: 'bold' }}>🧠 Identify Mastermind:</label>
                 <div className="player-select-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px', margin: '15px 0' }}>
                   {selectableCandidates.map((player) => (
                     <button
                       key={player.id}
                       type="button"
-                      className={`player-select-btn ${selectedCandidate === player.id ? 'selected conspirator' : ''}`}
+                      className={`player-select-btn ${selectedCandidate === player.id ? 'selected mastermind' : ''}`}
                       onClick={() => handleSelectCandidate(player.id)}
                       style={{
                         padding: '12px 16px',
@@ -263,7 +239,7 @@ export default function DecisionPhaseScreen() {
                         transition: 'all 0.2s ease'
                       }}
                     >
-                      🔪 {player.name}
+                      🧠 {player.name}
                     </button>
                   ))}
                 </div>
@@ -288,44 +264,44 @@ export default function DecisionPhaseScreen() {
                   marginTop: '10px'
                 }}
               >
-                🔒 SUBMIT CONSPIRATOR GUESS
+                🔒 SUBMIT MASTERMIND ACCUSATION
               </button>
             </div>
           </div>
         )}
 
-        {/* ── 2. INVESTIGATOR VIEW ── */}
+        {/* ── 2. INVESTIGATOR VIEW (VOTES FOR CONSPIRATOR) ── */}
         {isInvestigator && !isSubmitted && (
           <div className="decision-role-section">
             <div className="accusation-header">
-              <h2>🧩 INVESTIGATOR DECISION</h2>
+              <h2>🧩 INVESTIGATOR FINAL VOTE</h2>
               <p className="accusation-sub">
-                Independently select <strong>ONE</strong> player as your <strong>Mastermind</strong> guess.
+                All campus tasks secured! Cast your vote to identify the <strong>Conspirator</strong> carrying out sabotage.
               </p>
             </div>
 
             <div className="accusation-form">
               <div className="accusation-field">
-                <label style={{ color: '#60a5fa', fontWeight: 'bold' }}>Identify Mastermind:</label>
+                <label style={{ color: '#38bdf8', fontWeight: 'bold' }}>🔪 Identify Conspirator:</label>
                 <div className="player-select-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px', margin: '15px 0' }}>
                   {selectableCandidates.map((player) => (
                     <button
                       key={player.id}
                       type="button"
-                      className={`player-select-btn ${selectedCandidate === player.id ? 'selected mastermind' : ''}`}
+                      className={`player-select-btn ${selectedCandidate === player.id ? 'selected conspirator' : ''}`}
                       onClick={() => handleSelectCandidate(player.id)}
                       style={{
                         padding: '12px 16px',
                         borderRadius: '8px',
-                        border: selectedCandidate === player.id ? '2px solid #3b82f6' : '1px solid #374151',
-                        background: selectedCandidate === player.id ? 'rgba(59, 130, 246, 0.25)' : '#1f2937',
+                        border: selectedCandidate === player.id ? '2px solid #38bdf8' : '1px solid #374151',
+                        background: selectedCandidate === player.id ? 'rgba(56, 189, 248, 0.25)' : '#1f2937',
                         color: '#f3f4f6',
                         cursor: 'pointer',
                         fontWeight: 'bold',
                         transition: 'all 0.2s ease'
                       }}
                     >
-                      🧠 {player.name}
+                      🔪 {player.name}
                     </button>
                   ))}
                 </div>
@@ -341,7 +317,7 @@ export default function DecisionPhaseScreen() {
                   width: '100%',
                   padding: '14px',
                   borderRadius: '8px',
-                  background: selectedCandidate ? 'linear-gradient(135deg, #3b82f6, #1d4ed8)' : '#374151',
+                  background: selectedCandidate ? 'linear-gradient(135deg, #0284c7, #0369a1)' : '#374151',
                   color: '#ffffff',
                   fontWeight: 'bold',
                   fontSize: '1rem',
@@ -350,7 +326,7 @@ export default function DecisionPhaseScreen() {
                   marginTop: '10px'
                 }}
               >
-                🔒 SUBMIT MASTERMIND GUESS
+                🔒 SUBMIT CONSPIRATOR VOTE
               </button>
             </div>
           </div>
