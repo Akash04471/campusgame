@@ -93,24 +93,27 @@ active_game_loops: Dict[str, asyncio.Task] = {}
 
 async def push_dossier_update(room_code: str, gs: GameSessionState):
     """Helper to build and send a refreshed suspect dossier to the Detective."""
-    detective_id = next(
-        (int(pid) for pid, role in gs.assignments.items() if role == 'DETECTIVE'), None
-    )
-    if detective_id:
-        cctv = get_or_create_cctv_engine(room_code)
-        dossier = suspect_dossier_engine.build_dossier(
-            room_code=room_code,
-            player_ids=list(gs.assignments.keys()),
-            assignments=gs.assignments,
-            evidence_manager=evidence_manager,
-            cctv_engine=cctv,
-            correlations=gs.correlations_log,
-            movement_traces=gs.movement_traces,
+    try:
+        detective_id = next(
+            (int(pid) for pid, role in gs.assignments.items() if role == 'DETECTIVE'), None
         )
-        await send_to_player(room_code, detective_id, {
-            "type": "SUSPECT_DOSSIER_UPDATE",
-            "payload": {"suspects": dossier}
-        })
+        if detective_id:
+            cctv = get_or_create_cctv_engine(room_code)
+            dossier = suspect_dossier_engine.build_dossier(
+                room_code=room_code,
+                player_ids=list(gs.assignments.keys()),
+                assignments=gs.assignments,
+                evidence_manager=evidence_manager,
+                cctv_engine=cctv,
+                correlations=gs.correlations_log,
+                movement_traces=gs.movement_traces,
+            )
+            await send_to_player(room_code, detective_id, {
+                "type": "SUSPECT_DOSSIER_UPDATE",
+                "payload": {"suspects": dossier}
+            })
+    except Exception as e:
+        logger.error(f"[Dossier] Failed to push suspect dossier update for room {room_code}: {e}", exc_info=True)
 
 
 import logging
@@ -1104,7 +1107,7 @@ async def websocket_game_endpoint(websocket: WebSocket, room_code: str, player_i
                             if detective_id:
                                 await send_to_player(room_code, detective_id, {
                                     "type": "EVIDENCE_BOARD_UPDATE",
-                                    "payload": {"board": evidence_manager.get_detective_board(room_code)}
+                                    "payload": evidence_manager.get_detective_board(room_code)
                                 })
 
                 await send_to_player(room_code, p_id, {

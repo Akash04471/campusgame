@@ -25,7 +25,14 @@ class SuspectDossierEngine:
         correlations = correlations or []
         movement_traces = movement_traces or {}
 
-        detective_board = evidence_manager.get_detective_board(room_code)
+        detective_board_data = evidence_manager.get_detective_board(room_code)
+        if isinstance(detective_board_data, dict):
+            detective_board = detective_board_data.get('board', [])
+        elif isinstance(detective_board_data, list):
+            detective_board = detective_board_data
+        else:
+            detective_board = []
+
         dossiers = []
 
         for pid in player_ids:
@@ -37,7 +44,7 @@ class SuspectDossierEngine:
             # 1. Filter board evidence pointing to this player
             implicated_items = [
                 e for e in detective_board
-                if str(e.get('points_to_player_id')) == pid_str
+                if isinstance(e, dict) and str(e.get('points_to_player_id')) == pid_str
             ]
 
             evidence_count = len(implicated_items)
