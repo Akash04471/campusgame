@@ -361,7 +361,13 @@ export default function RoleRevealScreen({ onBegin }) {
             if (onBegin) onBegin()
           }}>
             <span className="cu-rr-btn-glow" />
-            <span className="cu-rr-btn-inner">BEGIN INVESTIGATION</span>
+            <span className="cu-rr-btn-inner">
+              {role === 'MASTERMIND'
+                ? 'COMMENCE OPERATION'
+                : role === 'CONSPIRATOR'
+                ? 'COMMENCE SABOTAGE'
+                : 'BEGIN INVESTIGATION'}
+            </span>
           </button>
         </div>
 
