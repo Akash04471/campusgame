@@ -102,29 +102,54 @@ export default function DecisionPhaseScreen() {
       }
 
       // Safety timeout: if server hasn't transitioned within 1.2 seconds, resolve on client
+      // using live session data instead of hardcoded bot identities.
       const fallbackTimer = setTimeout(() => {
         const state = useGameStore.getState()
         if (state.gamePhase === 'decision' || state.gamePhase === 'accusation') {
-          const myRole = (state.role || 'DETECTIVE').toUpperCase()
-          const detectiveGuess = state.decisionPhase?.detectiveChoice
-          const investigatorGuess = Object.values(state.decisionPhase?.investigatorChoices || {})[0]
+          const livePlayerNames = {
+            ...(state.playerName ? { [String(state.playerId)]: state.playerName } : {}),
+            ...Object.fromEntries(
+              Object.entries(state.otherPlayers || {}).map(([id, player]) => [
+                String(id),
+                player?.username || player?.name || `Agent #${id}`
+              ])
+            )
+          }
 
-          const detectiveCorrect = Boolean(detectiveGuess)
-          const investigatorCorrect = Boolean(investigatorGuess)
+          const liveAssignments = {
+            ...(state.playerId ? { [String(state.playerId)]: (state.role || 'DETECTIVE').toUpperCase() } : {}),
+            ...Object.fromEntries(
+              Object.entries(state.otherPlayers || {}).map(([id, player]) => [
+                String(id),
+                String(player?.role || 'INVESTIGATOR').toUpperCase()
+              ])
+            )
+          }
+
+          const detectiveId = Object.entries(liveAssignments).find(([, role]) => role === 'DETECTIVE')?.[0] || null
+          const mastermindId = Object.entries(liveAssignments).find(([, role]) => role === 'MASTERMIND')?.[0] || null
+          const conspiratorId = Object.entries(liveAssignments).find(([, role]) => role === 'CONSPIRATOR')?.[0] || null
+
+          const detectiveGuess = state.decisionPhase?.detectiveChoice || null
+          const investigatorGuess = Object.values(state.decisionPhase?.investigatorChoices || {})[0] || null
+          const detectiveCorrect = Boolean(detectiveId && detectiveGuess && String(detectiveGuess) === String(mastermindId))
+          const investigatorCorrect = Boolean(investigatorGuess && conspiratorId && String(investigatorGuess) === String(conspiratorId))
           const investigatorsWon = detectiveCorrect && investigatorCorrect
 
-          const result = state.gameResult || {
+          const result = {
             winner_faction: investigatorsWon ? 'INVESTIGATORS' : 'VILLAINS',
             winningRoles: investigatorsWon ? ['DETECTIVE', 'INVESTIGATOR'] : ['MASTERMIND', 'CONSPIRATOR'],
-            actualConspirator: { id: '9003', name: 'Dr. Viktor (Bot)' },
-            actualMastermind: { id: '9002', name: 'Officer Alex (Bot)' },
-            detective: { playerId: String(state.playerId || '1'), guess: detectiveGuess, correct: detectiveCorrect },
-            investigators: { success: true, finalGuess: investigatorGuess, correct: investigatorCorrect, voteCounts: {} },
+            mastermind_id: mastermindId,
+            conspirator_id: conspiratorId,
+            actualConspirator: { id: conspiratorId, name: conspiratorId ? livePlayerNames[conspiratorId] || `Agent #${conspiratorId}` : 'Unresolved' },
+            actualMastermind: { id: mastermindId, name: mastermindId ? livePlayerNames[mastermindId] || `Agent #${mastermindId}` : 'Unresolved' },
+            detective: { playerId: detectiveId, guess: detectiveGuess, guessName: detectiveGuess ? livePlayerNames[detectiveGuess] || `Agent #${detectiveGuess}` : null, correct: detectiveCorrect },
+            investigators: { success: true, finalGuess: investigatorGuess, finalGuessName: investigatorGuess ? livePlayerNames[investigatorGuess] || `Agent #${investigatorGuess}` : null, correct: investigatorCorrect, voteCounts: {} },
             detectiveCorrect,
             investigatorVoteResult: { success: true, correct: investigatorCorrect },
             player_stats: [],
-            all_roles: {},
-            player_names: {},
+            all_roles: liveAssignments,
+            player_names: livePlayerNames,
           }
           state.setGameResult(result)
           state.setGamePhase('results')
