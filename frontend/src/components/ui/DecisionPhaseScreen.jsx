@@ -367,9 +367,27 @@ export default function DecisionPhaseScreen() {
                 The Detective and Investigators are making their decisions...
               </p>
               <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                {['Agent Maya', 'Officer Alex'].map(name => (
-                  <span key={name} style={{ fontSize: '0.75rem', padding: '4px 10px', borderRadius: '12px', background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)', color: '#93c5fd' }}>🧩 {name} voting...</span>
-                ))}
+                {Object.entries(otherPlayers).map(([pid, p]) => {
+                  const pRole = (p.role || '').toUpperCase()
+                  // Only Detective and Investigators vote
+                  if (pRole === 'MASTERMIND' || pRole === 'CONSPIRATOR') return null
+                  const isSubmitted = decisionPhase?.submitted?.detective || Boolean(decisionPhase?.submitted?.investigators?.[pid])
+                  return (
+                    <span
+                      key={pid}
+                      style={{
+                        fontSize: '0.75rem',
+                        padding: '4px 10px',
+                        borderRadius: '12px',
+                        background: isSubmitted ? 'rgba(34,197,94,0.15)' : 'rgba(59,130,246,0.15)',
+                        border: isSubmitted ? '1px solid rgba(34,197,94,0.3)' : '1px solid rgba(59,130,246,0.3)',
+                        color: isSubmitted ? '#4ade80' : '#93c5fd'
+                      }}
+                    >
+                      {isSubmitted ? '✓' : '🧩'} {p.username || `Agent #${pid}`} {isSubmitted ? 'voted' : 'deliberating...'}
+                    </span>
+                  )
+                })}
               </div>
             </div>
           </div>

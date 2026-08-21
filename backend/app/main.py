@@ -195,6 +195,20 @@ async def force_resolve_decision_phase(room_code: str, gs, room, broadcast_func)
     })
 
 
+async def check_and_resolve_if_all_voted(room_code: str, gs, room, broadcast_func):
+    """Check if Detective and all Investigators have submitted their decision choices; resolve immediately if so."""
+    if not hasattr(gs, 'decision_votes') or getattr(gs, 'decision_resolved', False):
+        return
+    investigator_ids = [pid for pid, r in gs.assignments.items() if r == 'INVESTIGATOR']
+    detective_id = next((pid for pid, r in gs.assignments.items() if r == 'DETECTIVE'), None)
+
+    detective_done = (detective_id is None) or gs.decision_votes.get('submitted_detective', False)
+    investigators_done = all(str(pid) in gs.decision_votes.get('submitted_investigators', set()) for pid in investigator_ids)
+
+    if detective_done and investigators_done:
+        await force_resolve_decision_phase(room_code, gs, room, broadcast_func)
+
+
 async def run_authoritative_game_loop(room_code: str):
     logger.info(f"[Game Loop] Starting authoritative loop for room {room_code}")
     try:
@@ -426,7 +440,7 @@ async def run_authoritative_game_loop(room_code: str):
                     gs.decision_phase_active = True
                     gs.decision_resolved = False
                     gs.decision_phase_deadline = _time.time() + 10.0
-                    bot_manager.on_phase_change(room_code, 'decision', gs, room, broadcast_to_room, send_to_player)
+                    bot_manager.on_phase_change(room_code, 'decision', gs, room, broadcast_to_room, send_to_player, resolve_func=force_resolve_decision_phase)
                     await broadcast_to_room(room_code, {
                         "type": "DECISION_PHASE",
                         "payload": {"status": "started", "reason": "TIME_EXPIRED", "time_remaining": 10}
@@ -1342,7 +1356,7 @@ async def websocket_game_endpoint(websocket: WebSocket, room_code: str, player_i
                     gs.decision_phase_active = True
                     gs.decision_resolved = False
                     gs.decision_phase_deadline = _time.time() + 10.0
-                bot_manager.on_phase_change(room_code, 'decision', gs, room, broadcast_to_room, send_to_player)
+                bot_manager.on_phase_change(room_code, 'decision', gs, room, broadcast_to_room, send_to_player, resolve_func=force_resolve_decision_phase)
                 await broadcast_to_room(room_code, {
                     "type": "DECISION_PHASE",
                     "payload": {"status": "started", "time_remaining": 10}
@@ -1391,6 +1405,7 @@ async def websocket_game_endpoint(websocket: WebSocket, room_code: str, player_i
                         "voter_id": pid_str
                     }
                 })
+                await check_and_resolve_if_all_voted(room_code, gs, room, broadcast_to_room)
 
 
 

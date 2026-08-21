@@ -57,7 +57,7 @@ class BotManager:
                     task.cancel()
             self.active_tasks[room_code] = []
 
-    def on_phase_change(self, room_code: str, phase: str, gs, room, broadcast_func, send_func):
+    def on_phase_change(self, room_code: str, phase: str, gs, room, broadcast_func, send_func, resolve_func=None):
         """
         Main entry point called when game phase changes or initializes.
         Schedules chat, task/movement, and decision phase submissions for all 3 bots.
@@ -82,7 +82,7 @@ class BotManager:
                 bot_role = (gs.assignments.get(str(bot_id)) or '').upper()
                 if bot_role in ('DETECTIVE', 'INVESTIGATOR'):
                     tasks.append(asyncio.create_task(
-                        self._bot_decision_submission(room_code, bot_id, bot_role, gs, room, broadcast_func)
+                        self._bot_decision_submission(room_code, bot_id, bot_role, gs, room, broadcast_func, resolve_func)
                     ))
 
         self.active_tasks[room_code] = tasks
@@ -202,7 +202,7 @@ class BotManager:
         except asyncio.CancelledError:
             pass
 
-    async def _bot_decision_submission(self, room_code: str, bot_id: int, bot_role: str, gs, room, broadcast_func):
+    async def _bot_decision_submission(self, room_code: str, bot_id: int, bot_role: str, gs, room, broadcast_func, resolve_func=None):
         """
         Schedules decision voting submission for Detective and Investigator bots.
         Submits within randomized point (30% - 90%) of phase time window.
@@ -219,12 +219,12 @@ class BotManager:
             if not gs.is_active:
                 return
 
-            await self._execute_bot_decision(room_code, bot_id_str, bot_role, gs, room, broadcast_func)
+            await self._execute_bot_decision(room_code, bot_id_str, bot_role, gs, room, broadcast_func, resolve_func)
 
         except asyncio.CancelledError:
             pass
 
-    async def _execute_bot_decision(self, room_code: str, bot_id_str: str, bot_role: str, gs, room, broadcast_func):
+    async def _execute_bot_decision(self, room_code: str, bot_id_str: str, bot_role: str, gs, room, broadcast_func, resolve_func=None):
         """Executes actual decision submission with weighted random target pick."""
         if not hasattr(gs, 'decision_votes'):
             gs.decision_votes = {
@@ -269,6 +269,15 @@ class BotManager:
                 "voter_id": bot_id_str
             }
         })
+
+        # If all voters (Detective + Investigators) have submitted, force resolve immediately
+        investigator_ids = [pid for pid, r in gs.assignments.items() if r == 'INVESTIGATOR']
+        detective_id = next((pid for pid, r in gs.assignments.items() if r == 'DETECTIVE'), None)
+        detective_done = (detective_id is None) or gs.decision_votes.get('submitted_detective', False)
+        investigators_done = all(str(pid) in gs.decision_votes.get('submitted_investigators', set()) for pid in investigator_ids)
+        if detective_done and investigators_done and not getattr(gs, 'decision_resolved', False):
+            if resolve_func:
+                await resolve_func(room_code, gs, room, broadcast_func)
 
     def pick_bot_target(self, bot_id_str: str, persona: str, valid_targets: List[str], room_code: str) -> str:
         """

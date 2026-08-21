@@ -154,16 +154,18 @@ def resolve_game(
             game_session.ended_at = datetime.now(timezone.utc)
 
         for pr in player_results:
-            stat = UserGameStats(
-                user_id=int(pr['player_id']),
-                session_id=session_db_id,
-                role=pr['role'],
-                evidence_collected=pr['evidence_collected'],
-                tasks_completed=pr['tasks_completed'],
-                points_earned=pr['points_earned'],
-                won=pr['won'],
-            )
-            db.add(stat)
+            pid_int = int(pr['player_id'])
+            if pid_int < 9000 and session_db_id:
+                stat = UserGameStats(
+                    user_id=pid_int,
+                    session_id=session_db_id,
+                    role=pr['role'],
+                    evidence_collected=pr['evidence_collected'],
+                    tasks_completed=pr['tasks_completed'],
+                    points_earned=pr['points_earned'],
+                    won=pr['won'],
+                )
+                db.add(stat)
 
         db.commit()
     except Exception:
