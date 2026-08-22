@@ -477,10 +477,6 @@ export default function App() {
       const state = useGameStore.getState()
       if (state.gamePhase === 'decision' || state.gamePhase === 'results' || state.gamePhase === 'loading' || state.gamePhase === 'role_reveal') return
 
-      // Run bot movement if in solo mode or if socket is not actively driving bot positions
-      const hasActiveWs = state.ws && state.ws.readyState === WebSocket.OPEN && state.roomCode && !String(state.roomCode).startsWith('SOLO')
-      if (hasActiveWs) return
-
       Object.keys(SOLO_BOT_TARGETS).forEach(pid => {
         const bt = SOLO_BOT_TARGETS[pid]
         const target = CAMPUS_WAYPOINTS[bt.wpIdx]
