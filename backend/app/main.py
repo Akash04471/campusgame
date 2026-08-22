@@ -539,9 +539,10 @@ async def broadcast_to_room(room_code: str, message: dict):
     if not room:
         return
     for player in list(room.players.values()):
-        if player.websocket:
+        ws = getattr(player, 'game_websocket', None) or getattr(player, 'websocket', None)
+        if ws:
             try:
-                await player.websocket.send_json(message)
+                await ws.send_json(message)
             except Exception:
                 pass
 
@@ -552,11 +553,13 @@ async def send_to_player(room_code: str, player_id: int, message: dict):
     if not room:
         return
     player = room.players.get(player_id)
-    if player and player.websocket:
-        try:
-            await player.websocket.send_json(message)
-        except Exception:
-            pass
+    if player:
+        ws = getattr(player, 'game_websocket', None) or getattr(player, 'websocket', None)
+        if ws:
+            try:
+                await ws.send_json(message)
+            except Exception:
+                pass
 
 
 # ──────────────────────────────────────────────────────────────
@@ -781,7 +784,8 @@ async def websocket_lobby_endpoint(websocket: WebSocket, room_code: str, player_
 
 
     except WebSocketDisconnect:
-        player.websocket = None
+        if getattr(player, 'websocket', None) == websocket:
+            player.websocket = None
         await lobby_manager.broadcast_state(room_code)
 
 
@@ -824,32 +828,27 @@ async def websocket_game_endpoint(websocket: WebSocket, room_code: str, player_i
         await websocket.close(code=1008)
         return
 
+    # Track game_websocket specifically to avoid lobby disconnect clearing game socket
+    player.game_websocket = websocket
+    player.websocket = websocket
+
     # Reconnection handling — clear grace period entry if this player was disconnected
     pid_str_early = str(p_id)
     if room_code in disconnected_players and pid_str_early in disconnected_players[room_code]:
         del disconnected_players[room_code][pid_str_early]
-        player.websocket = websocket
         await broadcast_to_room(room_code, {
             "type": "PLAYER_RECONNECTED",
             "payload": {"player_id": pid_str_early}
         })
-    else:
-        player.websocket = websocket
 
     gs = active_game_states.get(room_code)
     if not gs:
-        # Game not started yet — send waiting status and keep connection open
-        await websocket.send_json({"type": "WAITING", "payload": {"message": "Waiting for game to start..."}})
-        # Keep alive until disconnected
-        try:
-            while True:
-                await websocket.receive_text()
-                gs = active_game_states.get(room_code)
-                if gs:
-                    break
-        except WebSocketDisconnect:
-            player.websocket = None
-            return
+        # Non-blocking check for game state initialization
+        for _ in range(50):
+            await asyncio.sleep(0.2)
+            gs = active_game_states.get(room_code)
+            if gs:
+                break
 
     player_names = {str(pid): p.username for pid, p in room.players.items()}
     pid_str = str(p_id)
@@ -1475,7 +1474,10 @@ async def websocket_game_endpoint(websocket: WebSocket, room_code: str, player_i
 
 
     except WebSocketDisconnect:
-        player.websocket = None
+        if getattr(player, 'game_websocket', None) == websocket:
+            player.game_websocket = None
+        if getattr(player, 'websocket', None) == websocket:
+            player.websocket = None
         pid_str_dc = str(p_id)
         disconnected_players.setdefault(room_code, {})[pid_str_dc] = _time.time()
         await broadcast_to_room(room_code, {
@@ -1486,5 +1488,5 @@ async def websocket_game_endpoint(websocket: WebSocket, room_code: str, player_i
     finally:
         # Clean up CCTV engine when all players disconnect
         room = lobby_manager.get_room(room_code)
-        if room and not any(p.websocket for p in room.players.values()):
+        if room and not any((getattr(p, 'game_websocket', None) or getattr(p, 'websocket', None)) for p in room.players.values()):
             cleanup_cctv_engine(room_code)

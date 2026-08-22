@@ -52,15 +52,6 @@ function SingleRemotePlayer({ playerId, data }) {
     return [0, 0, 0]
   }
 
-  /* Update lerp targets whenever position/rotation changes */
-  useEffect(() => {
-    const [px, py, pz] = decodePos(data.position)
-    targetPos.current.set(px, py, pz)
-    if (data.rotation !== undefined) {
-      targetRot.current = data.rotation
-    }
-  }, [data.position, data.rotation])
-
   /* Snap to initial position on mount so there is no slide-in from origin */
   useEffect(() => {
     if (!groupRef.current) return
@@ -78,18 +69,25 @@ function SingleRemotePlayer({ playerId, data }) {
   useFrame((_, delta) => {
     if (!groupRef.current) return
 
-    /* Smooth lerp — same factor as NPCCharacters.jsx SingleNPC (0.08) */
-    groupRef.current.position.lerp(targetPos.current, 0.08)
+    /* Dynamically decode target position directly from data on frame tick */
+    const [px, py, pz] = decodePos(data.position)
+    targetPos.current.set(px, py, pz)
+    if (data.rotation !== undefined) {
+      targetRot.current = data.rotation
+    }
+
+    /* Responsive smooth lerp */
+    groupRef.current.position.lerp(targetPos.current, 0.15)
     groupRef.current.rotation.y = THREE.MathUtils.lerp(
       groupRef.current.rotation.y,
       targetRot.current,
-      0.12
+      0.18
     )
 
     /* Derive walking/running from per-frame position delta */
     const distMoved = groupRef.current.position.distanceTo(prevPos.current)
     const speed     = distMoved / (delta || 0.016)
-    const walking   = speed > 0.08 && speed <= 6.5
+    const walking   = speed > 0.05 && speed <= 6.5
     const running   = speed > 6.5
 
     if (isWalking !== walking) setIsWalking(walking)

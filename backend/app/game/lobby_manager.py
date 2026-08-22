@@ -14,7 +14,12 @@ class PlayerLobbyState:
         self.username = username
         self.is_ready = False
         self.role: Optional[str] = None
-        self.websocket: Optional[WebSocket] = None
+        self.websocket: Optional[WebSocket] = None       # Lobby WebSocket
+        self.game_websocket: Optional[WebSocket] = None  # Game WebSocket
+
+    @property
+    def active_websocket(self) -> Optional[WebSocket]:
+        return self.game_websocket or self.websocket
 
     def to_dict(self) -> dict:
         return {

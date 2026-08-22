@@ -179,7 +179,7 @@ export default function ChatPanel() {
             {visible.map((msg, i) => (
               <div
                 key={i}
-                className={`chat-message ${msg.sender_name === playerName ? 'own' : ''}`}
+                className={`chat-message ${String(msg.sender_id) === String(playerId) || msg.sender_name === playerName ? 'own' : ''}`}
               >
                 <div className="chat-message-header">
                   <span className="chat-sender">{msg.sender_name}</span>
