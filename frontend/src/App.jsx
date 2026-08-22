@@ -407,9 +407,13 @@ export default function App() {
   const handleBeginInvestigation = useCallback(() => {
     setGamePhase('exploration')
     const state = useGameStore.getState()
-    if (!state.roomCode || String(state.roomCode).startsWith('SOLO') || !state.authToken) {
+    if (!state.otherPlayers['9001']) {
       state.updateOtherPlayer('9001', { username: 'Agent Maya (Bot)', position: [12.0, 0.5, -10.0], rotation: 0, role: 'INVESTIGATOR' })
+    }
+    if (!state.otherPlayers['9002']) {
       state.updateOtherPlayer('9002', { username: 'Officer Alex (Bot)', position: [-10.0, 0.5, 15.0], rotation: 0, role: 'MASTERMIND' })
+    }
+    if (!state.otherPlayers['9003']) {
       state.updateOtherPlayer('9003', { username: 'Dr. Viktor (Bot)', position: [20.0, 0.5, 5.0], rotation: 0, role: 'CONSPIRATOR' })
     }
   }, [setGamePhase])
@@ -445,7 +449,7 @@ export default function App() {
 
   // Solo mode: autonomous bot movement & task execution loop
   useEffect(() => {
-    if (screen !== 'game' || (roomCode && !String(roomCode).startsWith('SOLO'))) return
+    if (screen !== 'game') return
 
     const CAMPUS_WAYPOINTS = [
       [34.5, 0.5, 3.5],   // Computer Lab
@@ -472,6 +476,10 @@ export default function App() {
     const movementInterval = setInterval(() => {
       const state = useGameStore.getState()
       if (state.gamePhase === 'decision' || state.gamePhase === 'results' || state.gamePhase === 'loading' || state.gamePhase === 'role_reveal') return
+
+      // Run bot movement if in solo mode or if socket is not actively driving bot positions
+      const hasActiveWs = state.ws && state.ws.readyState === WebSocket.OPEN && state.roomCode && !String(state.roomCode).startsWith('SOLO')
+      if (hasActiveWs) return
 
       Object.keys(SOLO_BOT_TARGETS).forEach(pid => {
         const bt = SOLO_BOT_TARGETS[pid]
