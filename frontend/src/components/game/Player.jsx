@@ -816,11 +816,6 @@ export default function Player() {
         />
       </group>
 
-      {/* Other players */}
-      {Object.entries(otherPlayers).map(([pid, data]) => (
-        <OtherPlayerCharacter key={pid} data={{ ...data, player_id: pid }} />
-      ))}
-
       {/* Orbit controls for click-and-drag, pan, and zoom */}
       <OrbitControls
         ref={controlsRef}

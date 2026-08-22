@@ -66,7 +66,12 @@ export default function ChatPanel() {
     const msg = input.trim()
     if (!msg) return
 
-    if (ws && ws.readyState === WebSocket.OPEN) {
+    const state = useGameStore.getState()
+    const currentRoomCode = state.roomCode
+    const currentAuthToken = state.authToken
+    const isSolo = !currentRoomCode || String(currentRoomCode).startsWith('SOLO') || !currentAuthToken
+
+    if (!isSolo && ws && ws.readyState === WebSocket.OPEN) {
       try {
         ws.send(JSON.stringify({
           action: 'CHAT_MESSAGE',
@@ -81,12 +86,12 @@ export default function ChatPanel() {
       addChatMessage({
         channel: chatChannel,
         sender_id: String(playerId || '1'),
-        sender_name: playerName || 'Agent',
+        sender_name: playerName || 'Agent (Detective)',
         message: msg,
         timestamp: Date.now() / 1000
       })
 
-      // Simulate reactive bot reply after 1.8s
+      // Simulate reactive bot reply after 1.5s
       setTimeout(() => {
         const botPool = [
           { name: 'Agent Maya (Bot)', text: 'Noted. I\'m focusing on completing campus tasks in Library.' },
@@ -101,7 +106,7 @@ export default function ChatPanel() {
           message: pick.text,
           timestamp: Date.now() / 1000
         })
-      }, 1800)
+      }, 1500)
     }
 
     setInput('')

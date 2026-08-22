@@ -121,7 +121,7 @@ function useGameWebSocket(roomCode, playerId) {
   const token = useGameStore((s) => s.authToken)
 
   useEffect(() => {
-    if (!roomCode || !playerId) return
+    if (!roomCode || !playerId || String(roomCode).startsWith('SOLO')) return
     const protocol = getWsProtocol()
     const host = getBackendHost()
     const wsUrl = `${protocol}://${host}/ws/game/${roomCode}/${playerId}?token=${encodeURIComponent(token || '')}`
@@ -298,6 +298,12 @@ function useGameWebSocket(roomCode, playerId) {
   }, [roomCode, playerId, token])
 }
 
+const SOLO_BOT_TARGETS = {
+  '9001': { wpIdx: 0, currPos: [12.0, 0.5, -10.0], holdTimer: 0 },
+  '9002': { wpIdx: 2, currPos: [-10.0, 0.5, 15.0], holdTimer: 0 },
+  '9003': { wpIdx: 5, currPos: [20.0, 0.5, 5.0], holdTimer: 0 },
+}
+
 /* ──────────────────── App Root ──────────────────── */
 export default function App() {
   // ── Local screen machine: LOADING → SPLASH → CINEMATIC → GAME
@@ -452,12 +458,6 @@ export default function App() {
       [19.0, 0.5, -2.0],  // Park Garden
     ]
 
-    const botTargets = {
-      '9001': { wpIdx: 0, currPos: [12.0, 0.5, -10.0], holdTimer: 0 },
-      '9002': { wpIdx: 2, currPos: [-10.0, 0.5, 15.0], holdTimer: 0 },
-      '9003': { wpIdx: 5, currPos: [20.0, 0.5, 5.0], holdTimer: 0 },
-    }
-
     const BOT_NAMES = {
       '9001': 'Agent Maya (Bot)',
       '9002': 'Officer Alex (Bot)',
@@ -473,8 +473,8 @@ export default function App() {
       const state = useGameStore.getState()
       if (state.gamePhase === 'decision' || state.gamePhase === 'results' || state.gamePhase === 'loading' || state.gamePhase === 'role_reveal') return
 
-      Object.keys(botTargets).forEach(pid => {
-        const bt = botTargets[pid]
+      Object.keys(SOLO_BOT_TARGETS).forEach(pid => {
+        const bt = SOLO_BOT_TARGETS[pid]
         const target = CAMPUS_WAYPOINTS[bt.wpIdx]
         const [cx, cy, cz] = bt.currPos
         const [tx, , tz] = target
