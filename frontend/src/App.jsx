@@ -437,7 +437,7 @@ export default function App() {
     }
   }, [screen, roomCode])
 
-  // Solo mode: autonomous bot movement loop
+  // Solo mode: autonomous bot movement & task execution loop
   useEffect(() => {
     if (screen !== 'game' || (roomCode && !String(roomCode).startsWith('SOLO'))) return
 
@@ -453,9 +453,9 @@ export default function App() {
     ]
 
     const botTargets = {
-      '9001': { wpIdx: 0, currPos: [12.0, 0.5, -10.0] },
-      '9002': { wpIdx: 2, currPos: [-10.0, 0.5, 15.0] },
-      '9003': { wpIdx: 5, currPos: [20.0, 0.5, 5.0] },
+      '9001': { wpIdx: 0, currPos: [12.0, 0.5, -10.0], holdTimer: 0 },
+      '9002': { wpIdx: 2, currPos: [-10.0, 0.5, 15.0], holdTimer: 0 },
+      '9003': { wpIdx: 5, currPos: [20.0, 0.5, 5.0], holdTimer: 0 },
     }
 
     const BOT_NAMES = {
@@ -471,7 +471,7 @@ export default function App() {
 
     const movementInterval = setInterval(() => {
       const state = useGameStore.getState()
-      if (state.gamePhase === 'decision' || state.gamePhase === 'results') return
+      if (state.gamePhase === 'decision' || state.gamePhase === 'results' || state.gamePhase === 'loading' || state.gamePhase === 'role_reveal') return
 
       Object.keys(botTargets).forEach(pid => {
         const bt = botTargets[pid]
@@ -482,19 +482,38 @@ export default function App() {
         const dz = tz - cz
         const dist = Math.sqrt(dx * dx + dz * dz)
 
-        const speed = 5.5 // units per tick
-        let newX, newZ
-        if (dist < 1.5) {
-          // Arrived — pick next random waypoint
-          bt.wpIdx = (bt.wpIdx + 1 + Math.floor(Math.random() * 3)) % CAMPUS_WAYPOINTS.length
-          newX = cx; newZ = cz
+        const speedPerTick = 0.45 // smooth 4.5 units/sec walk speed at 100ms interval
+        let newX = cx
+        let newZ = cz
+        let rot = 0
+
+        if (dist < 1.6) {
+          // Bot is AT task location — perform task hold
+          bt.holdTimer = (bt.holdTimer || 0) + 1
+          if (bt.holdTimer >= 25) { // ~2.5s task execution hold
+            bt.holdTimer = 0
+            // Progress global tasks
+            const currentPct = state.globalTaskPercent || 0
+            const nextPct = Math.min(100, currentPct + 6)
+            state.setGlobalTaskPercent({
+              percent: nextPct,
+              completed: Math.floor((nextPct / 100) * 12),
+              total: 12
+            })
+            // Select next task waypoint
+            bt.wpIdx = (bt.wpIdx + 1 + Math.floor(Math.random() * 3)) % CAMPUS_WAYPOINTS.length
+          }
+          rot = 0
         } else {
-          newX = cx + (dx / dist) * Math.min(speed, dist)
-          newZ = cz + (dz / dist) * Math.min(speed, dist)
+          // Reset hold timer when walking
+          bt.holdTimer = 0
+          const step = Math.min(speedPerTick, dist)
+          newX = cx + (dx / dist) * step
+          newZ = cz + (dz / dist) * step
+          rot = Math.atan2(dx, dz)
         }
 
         bt.currPos = [newX, cy, newZ]
-        const rot = Math.atan2(dx, dz)
 
         state.updateOtherPlayer(pid, {
           username: BOT_NAMES[pid],
@@ -503,7 +522,7 @@ export default function App() {
           role: BOT_ROLES[pid],
         })
       })
-    }, 350)
+    }, 100) // 100ms tick rate for smooth continuous walking animation
 
     return () => clearInterval(movementInterval)
   }, [screen, roomCode])
