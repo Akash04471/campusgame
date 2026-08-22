@@ -221,7 +221,9 @@ function ChristUniversityMinimap() {
     // Render other players
     Object.values(otherPlayers).forEach(p => {
       if (!p.position) return
-      const [px, py] = worldToMap(p.position.x || p.position[0], p.position.z || p.position[2])
+      const rawX = typeof p.position.x === 'number' ? p.position.x : (Array.isArray(p.position) ? p.position[0] : 0)
+      const rawZ = typeof p.position.z === 'number' ? p.position.z : (Array.isArray(p.position) ? (p.position[2] ?? p.position[1]) : 0)
+      const [px, py] = worldToMap(rawX, rawZ)
       ctx.beginPath(); ctx.arc(px, py, 3.8, 0, Math.PI * 2)
       ctx.fillStyle = '#94a3b8'
       ctx.fill()

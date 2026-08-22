@@ -745,9 +745,9 @@ export default function Player() {
       }
     }
 
-    // Send movement to server
+    // Send real-time movement to server (50ms interval = 20 FPS sync)
     movSendTimer.current += delta
-    if (ws && ws.readyState === WebSocket.OPEN && movSendTimer.current > 0.1) {
+    if (ws && ws.readyState === WebSocket.OPEN && movSendTimer.current > 0.05) {
       movSendTimer.current = 0
       ws.send(JSON.stringify({
         action: 'PLAYER_MOVE',

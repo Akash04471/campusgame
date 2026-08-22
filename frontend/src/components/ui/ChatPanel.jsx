@@ -71,6 +71,15 @@ export default function ChatPanel() {
     const currentAuthToken = state.authToken
     const isSolo = !currentRoomCode || String(currentRoomCode).startsWith('SOLO') || !currentAuthToken
 
+    // Optimistically add message to local UI state for zero-latency display
+    addChatMessage({
+      channel: chatChannel,
+      sender_id: String(playerId || '1'),
+      sender_name: playerName || 'Agent',
+      message: msg,
+      timestamp: Date.now() / 1000
+    })
+
     if (!isSolo && ws && ws.readyState === WebSocket.OPEN) {
       try {
         ws.send(JSON.stringify({
@@ -81,17 +90,8 @@ export default function ChatPanel() {
       } catch (err) {
         console.error('[Chat] Send failed:', err)
       }
-    } else {
-      // Offline / Solo mode fallback
-      addChatMessage({
-        channel: chatChannel,
-        sender_id: String(playerId || '1'),
-        sender_name: playerName || 'Agent (Detective)',
-        message: msg,
-        timestamp: Date.now() / 1000
-      })
-
-      // Simulate reactive bot reply after 1.5s
+    } else if (isSolo) {
+      // Simulate reactive bot reply after 1.5s in solo mode
       setTimeout(() => {
         const botPool = [
           { name: 'Agent Maya (Bot)', text: 'Noted. I\'m focusing on completing campus tasks in Library.' },

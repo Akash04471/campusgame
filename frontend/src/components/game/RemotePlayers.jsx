@@ -76,12 +76,12 @@ function SingleRemotePlayer({ playerId, data }) {
       targetRot.current = data.rotation
     }
 
-    /* Responsive smooth lerp */
-    groupRef.current.position.lerp(targetPos.current, 0.15)
+    /* Real-time responsive smooth lerp for 20Hz movement stream */
+    groupRef.current.position.lerp(targetPos.current, 0.22)
     groupRef.current.rotation.y = THREE.MathUtils.lerp(
       groupRef.current.rotation.y,
       targetRot.current,
-      0.18
+      0.25
     )
 
     /* Derive walking/running from per-frame position delta */

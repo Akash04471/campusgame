@@ -235,7 +235,11 @@ function useGameWebSocket(roomCode, playerId) {
               timestamp: Date.now()
             })
             break
-          case 'CHAT_MESSAGE': addChatMessage(payload); break
+          case 'CHAT_MESSAGE':
+            if (String(payload.sender_id) !== String(playerId)) {
+              addChatMessage(payload)
+            }
+            break
           case 'MEETING_STARTED':
             setMeetingActive(true)
             setMeetingTimeRemaining(payload.time_remaining || 120)
