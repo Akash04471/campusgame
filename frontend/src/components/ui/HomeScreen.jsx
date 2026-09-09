@@ -846,7 +846,7 @@ function AuthPanel({ isOpen, initialMode = 'login', onAuth, onClose }) {
       }
       const token = await apiFetch('/api/v1/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ username_or_email: email, email, username: email, password })
+        body: JSON.stringify({ username_or_email: email, email: email, username: email, password })
       })
       const me = await apiFetch('/api/v1/auth/me', {}, token.access_token)
       onAuth({ token: token.access_token, userId: me.id, username: me.username })

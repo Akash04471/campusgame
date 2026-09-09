@@ -85,7 +85,7 @@ async def login_json(user_in: UserLogin):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Incorrect username/email or password",
         )
-    user_identifier = user.user_id if user.user_id else str(user.id)
+    user_identifier = str(user.user_id if user.user_id else user.id)
     access_token = security.create_access_token(subject=user_identifier)
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -101,7 +101,7 @@ async def login_oauth(form_data: OAuth2PasswordRequestForm = Depends()):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Incorrect username/email or password",
         )
-    user_identifier = user.user_id if user.user_id else str(user.id)
+    user_identifier = str(user.user_id if user.user_id else user.id)
     access_token = security.create_access_token(subject=user_identifier)
     return {"access_token": access_token, "token_type": "bearer"}
 
