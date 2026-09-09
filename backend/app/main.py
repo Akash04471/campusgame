@@ -56,6 +56,23 @@ app.add_middleware(
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
+from fastapi.responses import JSONResponse
+from fastapi import Request
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import logging
+    logging.getLogger("uvicorn.error").error(f"Global unhandled error: {exc}", exc_info=True)
+    response = JSONResponse(
+        status_code=500,
+        content={"detail": str(exc) or "Internal server error"}
+    )
+    origin = request.headers.get("origin")
+    if origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
+
 
 
 # ── Create all DB tables on startup ──
