@@ -26,7 +26,6 @@ from app.game.suspect_dossier_service import suspect_dossier_engine
 from app.game.bot_chat_service import bot_chat_service
 from app.game.bot_manager import bot_manager
 from app.db.session import init_db, close_db
-from app.db.base import Base
 
 
 
