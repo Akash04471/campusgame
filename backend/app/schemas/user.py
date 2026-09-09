@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 
 # Shared properties
 class UserBase(BaseModel):
@@ -20,7 +20,7 @@ class UserLogin(BaseModel):
 
 # Properties to return to client (excludes hashed password)
 class UserResponse(UserBase):
-    id: int
+    id: Union[int, str]
     is_active: bool
     created_at: datetime
 

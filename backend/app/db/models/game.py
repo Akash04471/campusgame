@@ -1,37 +1,30 @@
 import uuid
-from sqlalchemy import Column, String, DateTime, ForeignKey, Integer, Boolean
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
+from beanie import Document
+from pydantic import Field
+from datetime import datetime
+from typing import Optional
 
-from app.db.base_class import Base
+class GameSession(Document):
+    session_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    status: str = "waiting" # waiting, playing, finished
+    difficulty: str = "standard"
+    winner_faction: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    ended_at: Optional[datetime] = None
 
-class GameSession(Base):
-    __tablename__ = "game_sessions"
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    status = Column(String(20), default="waiting", nullable=False) # waiting, playing, finished
-    difficulty = Column(String(10), default="standard", nullable=False) # standard (fixed 5-min game)
-    winner_faction = Column(String(50), nullable=True) # Faction Detective/Investigators, Faction Villains
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    ended_at = Column(DateTime(timezone=True), nullable=True)
-
-    # Relationships
-    player_stats = relationship("UserGameStats", back_populates="session")
+    class Settings:
+        name = "game_sessions"
 
 
-class UserGameStats(Base):
-    __tablename__ = "user_game_stats"
+class UserGameStats(Document):
+    user_id: str
+    session_id: str
+    role: str # DETECTIVE, INVESTIGATOR, MASTERMIND, CONSPIRATOR
+    evidence_collected: int = 0
+    tasks_completed: int = 0
+    points_earned: int = 0
+    won: bool = False
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    session_id = Column(UUID(as_uuid=True), ForeignKey("game_sessions.id", ondelete="CASCADE"), nullable=False)
-    role = Column(String(20), nullable=False) # DETECTIVE, INVESTIGATOR, MASTERMIND, CONSPIRATOR
-    evidence_collected = Column(Integer, default=0)
-    tasks_completed = Column(Integer, default=0)
-    points_earned = Column(Integer, default=0)
-    won = Column(Boolean, default=False)
-
-    # Relationships
-    user = relationship("User", back_populates="game_history")
-    session = relationship("GameSession", back_populates="player_stats")
+    class Settings:
+        name = "user_game_stats"

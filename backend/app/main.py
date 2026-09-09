@@ -25,10 +25,10 @@ from app.game.correlation_engine import correlation_engine
 from app.game.suspect_dossier_service import suspect_dossier_engine
 from app.game.bot_chat_service import bot_chat_service
 from app.game.bot_manager import bot_manager
+from app.db.session import init_db, close_db
 from app.db.base import Base
 
 
-from app.db.session import engine, SessionLocal
 
 
 def verify_ws_token(token: str, expected_user_id: int) -> bool:
@@ -62,8 +62,12 @@ app.add_middleware(
 
 # ── Create all DB tables on startup ──
 @app.on_event("startup")
-def on_startup():
-    Base.metadata.create_all(bind=engine)
+async def on_startup():
+    await init_db()
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    await close_db()
 
 
 # ──────────────────────────────────────────────────────────────
@@ -154,9 +158,8 @@ async def force_resolve_decision_phase(room_code: str, gs, room, broadcast_func)
         "conspirator_accusation": gs.decision_votes['detective_choice'],
     }
 
-    db = SessionLocal()
     try:
-        result = resolve_game(
+        result = await resolve_game(
             room_code=room_code,
             assignments=gs.assignments,
             mastermind_id=gs.mastermind_id,
@@ -164,10 +167,9 @@ async def force_resolve_decision_phase(room_code: str, gs, room, broadcast_func)
             accusation=accusation,
             player_names=player_names,
             session_db_id=getattr(gs, 'db_session_id', None),
-            db=db,
+            db=None,
             investigator_choices=gs.decision_votes['investigator_choices'],
         )
-        db.commit()
     except Exception as e:
         logger.error(f"[Resolution] Error in force_resolve_decision_phase for room {room_code}: {e}", exc_info=True)
         result = {
@@ -203,9 +205,8 @@ async def force_resolve_timeout_villains_win(room_code: str, gs, room, broadcast
     gs.decision_phase_active = False
 
     player_names = {str(pid): p.username for pid, p in room.players.items()}
-    db = SessionLocal()
     try:
-        result = resolve_game(
+        result = await resolve_game(
             room_code=room_code,
             assignments=gs.assignments,
             mastermind_id=gs.mastermind_id,
@@ -213,12 +214,11 @@ async def force_resolve_timeout_villains_win(room_code: str, gs, room, broadcast
             accusation=None,
             player_names=player_names,
             session_db_id=getattr(gs, 'db_session_id', None),
-            db=db,
+            db=None,
             investigator_choices=None,
             forced_winner_faction="VILLAINS",
             end_reason="TIMEOUT_TASKS_INCOMPLETE"
         )
-        db.commit()
     except Exception as e:
         logger.error(f"[Resolution] Error in force_resolve_timeout_villains_win for room {room_code}: {e}", exc_info=True)
         result = {
@@ -667,20 +667,15 @@ async def websocket_lobby_endpoint(websocket: WebSocket, room_code: str, player_
                 result = assign_roles(player_ids_str, difficulty=room.difficulty)
 
                 # Store game state
-                # Create DB Game Session row
-                db_session = SessionLocal()
+                # Create DB Game Session document in MongoDB
                 db_session_id = None
                 try:
                     from app.db.models.game import GameSession
                     db_gs = GameSession(status="playing", difficulty=room.difficulty)
-                    db_session.add(db_gs)
-                    db_session.commit()
-                    db_session.refresh(db_gs)
-                    db_session_id = db_gs.id
+                    await db_gs.insert()
+                    db_session_id = db_gs.session_id
                 except Exception as e:
                     print(f"Failed to create GameSession in DB: {e}")
-                finally:
-                    db_session.close()
 
                 gs = GameSessionState()
                 gs.db_session_id = db_session_id

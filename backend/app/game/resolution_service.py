@@ -1,5 +1,4 @@
 from typing import Dict, List, Optional
-from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
 from app.db.models.game import GameSession, UserGameStats
@@ -55,25 +54,21 @@ def resolve_investigator_votes(investigator_choices: Dict[str, str]) -> dict:
         }
 
 
-def resolve_game(
+async def resolve_game(
     room_code: str,
     assignments: Dict[str, str],
     mastermind_id: str,
     conspirator_id: str,
     accusation: Optional[Dict[str, str]],
     player_names: Dict[str, str],
-    session_db_id,
-    db: Session,
+    session_db_id: Optional[str] = None,
+    db = None,
     investigator_choices: Optional[Dict[str, str]] = None,
     forced_winner_faction: Optional[str] = None,
     end_reason: Optional[str] = None,
 ) -> dict:
     """
-    Determines the winner, persists stats to DB, returns full result payload.
-    Rules:
-    - Detective votes for MASTERMIND.
-    - Investigators vote for CONSPIRATOR.
-    - If timer expires before all tasks are complete, forced_winner_faction='VILLAINS' (TIMEOUT_TASKS_INCOMPLETE).
+    Determines the winner, persists stats asynchronously to MongoDB, returns full result payload.
     """
     mastermind_id_str = str(mastermind_id) if mastermind_id is not None else None
     conspirator_id_str = str(conspirator_id) if conspirator_id is not None else None
@@ -162,30 +157,29 @@ def resolve_game(
             'won': won,
         })
 
-    # Persist to DB
+    # Persist to MongoDB
     try:
-        game_session = db.query(GameSession).filter(GameSession.id == session_db_id).first()
-        if game_session:
-            game_session.status = 'finished'
-            game_session.winner_faction = winner_faction
-            game_session.ended_at = datetime.now(timezone.utc)
+        if session_db_id:
+            game_session = await GameSession.find_one(GameSession.session_id == str(session_db_id))
+            if game_session:
+                game_session.status = 'finished'
+                game_session.winner_faction = winner_faction
+                game_session.ended_at = datetime.now(timezone.utc)
+                await game_session.save()
 
         for pr in player_results:
-            pid_int = int(pr['player_id'])
-            if pid_int < 9000 and session_db_id:
+            if str(pr['player_id']).isdigit() and int(pr['player_id']) < 9000 and session_db_id:
                 stat = UserGameStats(
-                    user_id=pid_int,
-                    session_id=session_db_id,
+                    user_id=str(pr['player_id']),
+                    session_id=str(session_db_id),
                     role=pr['role'],
                     evidence_collected=pr['evidence_collected'],
                     tasks_completed=pr['tasks_completed'],
                     points_earned=pr['points_earned'],
                     won=pr['won'],
                 )
-                db.add(stat)
-
-        db.commit()
-    except Exception:
+                await stat.insert()
+    except Exception as e:
         pass  # Don't fail game resolution if DB write fails
 
     detective_id = next(
@@ -230,5 +224,3 @@ def resolve_game(
         'player_names': player_names,
         'end_reason': end_reason,
     }
-
-

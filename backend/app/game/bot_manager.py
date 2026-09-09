@@ -5,7 +5,6 @@ from typing import Dict, List, Optional
 from app.game.bot_chat_service import bot_chat_service
 from app.game.task_manager import task_manager
 from app.game.resolution_service import resolve_game
-from app.db.session import SessionLocal
 
 # Waypoint targets around campus for simulated bot movement
 BOT_CAMPUS_LOCATIONS = [

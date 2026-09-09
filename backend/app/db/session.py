@@ -1,18 +1,23 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from typing import Generator
-
+from motor.motor_asyncio import AsyncIOMotorClient
+from beanie import init_beanie
 from app.core.config import settings
 
-engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True,
-)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+client: AsyncIOMotorClient = None
 
-def get_db() -> Generator:
-    try:
-        db = SessionLocal()
-        yield db
-    finally:
-        db.close()
+async def init_db():
+    global client
+    client = AsyncIOMotorClient(settings.MONGODB_URL)
+    db = client.get_database(settings.MONGODB_DB_NAME)
+    
+    from app.db.models.user import User
+    from app.db.models.game import GameSession, UserGameStats
+    
+    await init_beanie(
+        database=db,
+        document_models=[User, GameSession, UserGameStats]
+    )
+
+async def close_db():
+    global client
+    if client:
+        client.close()

@@ -10,7 +10,8 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     
     # Database
-    DATABASE_URL: str = "postgresql://campus_admin:secret_password_123@localhost:5432/campus_undercover"
+    MONGODB_URL: str = "mongodb://localhost:27017"
+    MONGODB_DB_NAME: str = "campus_undercover"
     
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = [
@@ -22,6 +23,7 @@ class Settings(BaseSettings):
 
     class Config:
         case_sensitive = True
+        extra = "ignore"
         env_file = ".env"
 
 settings = Settings()
