@@ -40,9 +40,9 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register_user(user_in: UserCreate):
     # Check if username or email exists
-    existing_user = await User.find_one(
-        (User.username == user_in.username) | (User.email == user_in.email)
-    )
+    existing_user = await User.find_one(User.username == user_in.username)
+    if not existing_user:
+        existing_user = await User.find_one(User.email == user_in.email)
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -77,9 +77,9 @@ async def login_json(user_in: UserLogin):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username or email is required",
         )
-    user = await User.find_one(
-        (User.email == identifier) | (User.username == identifier)
-    )
+    user = await User.find_one(User.email == identifier)
+    if not user:
+        user = await User.find_one(User.username == identifier)
     if not user or not security.verify_password(user_in.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
